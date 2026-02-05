@@ -1,8 +1,8 @@
-use crate::chess::{BLACK_KING_ID, ChessCommon, ChessKind, ChessTrait, Piece, RED_KING_ID};
-use crate::position::Position;
-
-use crate::pos;
+use crate::chess::{BLACK_KING_ID, ChessKind, ChessTrait, Chess, RED_KING_ID};
+use crate::position::{self, Position};
 use crate::vec2d::Vec2d;
+
+use crate::{pos, vec2d};
 
 const RED_WALK_OPTIONAL_POSITIONS: [Position; 9] = [
     pos!(3, 0),
@@ -28,10 +28,18 @@ const BLACK_WALK_OPTIONAL_POSITIONS: [Position; 9] = [
     pos!(5, 7),
 ];
 
+const KING_WALK_DIRECTIONS: [Vec2d; 5] = [
+    vec2d!(0, 0),
+    vec2d!(1, 0),
+    vec2d!(0, 1),
+    vec2d!(-1, 0),
+    vec2d!(0, -1),
+];
+
 const WALK_OPTIONS_COUNT: usize = 9;
 
 #[derive(Debug, Clone)]
-pub struct King(Piece<WALK_OPTIONS_COUNT>);
+pub struct King(Chess<WALK_OPTIONS_COUNT>);
 
 impl King {
     pub fn new(id: i8) -> Self {
@@ -42,43 +50,41 @@ impl King {
             pos!(4, 9)
         };
         let name = if id == RED_KING_ID { '帅' } else { '将' };
-        Self(Piece {
-            common: ChessCommon::new(ChessKind::King, id, true, pos, name),
-            walk_options: [None; WALK_OPTIONS_COUNT],
-            option_count: 0,
-        })
+        Self(Chess::new(ChessKind::King, id, true, pos, name))
     }
 }
 
 impl ChessTrait for King {
     fn killed(&mut self) {
-        self.0.common.killed()
+        self.0.killed()
     }
     fn is_alive(&self) -> bool {
-        self.0.common.is_alive()
+        self.0.is_alive()
     }
     fn get_name(&self) -> char {
-        self.0.common.get_name()
+        self.0.get_name()
     }
 
     fn walk_options<'a>(
         &'a mut self,
         board_status: &crate::board::BoardShape,
     ) -> (&'a [Option<Position>], usize) {
-        let id = self.0.common.id;
+        let id = self.0.id;
         let optional_positions = if id > 0 {
             RED_WALK_OPTIONAL_POSITIONS
         } else {
             BLACK_WALK_OPTIONAL_POSITIONS
         };
 
-        let cur_pos = self.0.common.pos;
-        self.0.walk_options[0] = Some(cur_pos);
-        self.0.option_count = 1;
-        for pos in optional_positions {
+        let cur_pos = self.0.pos;
+        let reachable_positions: [Position; KING_WALK_DIRECTIONS.len()] =
+            std::array::from_fn(|i| cur_pos + KING_WALK_DIRECTIONS[i]);
+        let walkable_positions = position::intersection(&optional_positions, &reachable_positions);
+
+        for pos in walkable_positions {
             let other = board_status[pos.x][pos.y];
             if other == 0 {
-                self.0.walk_options[self.0.option_count] = Some(pos);
+                self.0.walk_options[self.0.option_count] = Some(*pos);
                 self.0.option_count += 1;
             }
         }
@@ -86,14 +92,14 @@ impl ChessTrait for King {
     }
 
     fn walk(&mut self, direction: Vec2d) -> bool {
-        let new_pos = self.0.common.pos + direction;
+        let new_pos = self.0.pos + direction;
         for pos in self.0.walk_options {
-            if let Some(pos_) = pos {
-                if pos_ == new_pos {
-                    // can walk
-                    self.0.common.pos = new_pos;
-                    return true;
-                }
+            if let Some(pos_) = pos
+                && pos_ == new_pos
+            {
+                // can walk
+                self.0.pos = new_pos;
+                return true;
             }
         }
         return false;

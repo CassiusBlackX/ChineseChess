@@ -65,7 +65,7 @@ mod pawn;
 mod servant;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-enum ChessKind {
+pub enum ChessKind {
     King,
     Servant,
     Elephant,
@@ -83,25 +83,18 @@ pub trait ChessTrait {
     fn get_name(&self) -> char;
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct ChessCommon {
-    pub job: ChessKind,
-    // positive for red
-    // negative for black
-    pub id: i8,
-    pub is_alive: bool,
-    pub pos: Position,
-    pub name: char,
-}
-
 #[derive(Debug, Clone)]
-pub struct Piece<const N: usize> {
-    common: ChessCommon,
+pub struct Chess<const N: usize> {
+    job: ChessKind,
+    id: i8,  // positive for red, negative for black
+    is_alive: bool,
+    pos: Position,
+    name: char,
     walk_options: [Option<Position>; N],
     option_count: usize,
 }
 
-impl ChessCommon {
+impl<const N: usize> Chess<N> {
     pub fn new(job: ChessKind, id: i8, is_alive: bool, pos: Position, name: char) -> Self {
         Self {
             job,
@@ -109,6 +102,8 @@ impl ChessCommon {
             is_alive,
             pos,
             name,
+            walk_options: [None; N],
+            option_count: 0,
         }
     }
 

@@ -10,7 +10,7 @@ pub struct Vec2d {
 #[macro_export]
 macro_rules! vec2d {
     ($x:expr, $y:expr) => {
-        crate::position::Vec2d { x: $x, y: $y }
+        crate::vec2d::Vec2d { x: $x, y: $y }
     };
 }
 
