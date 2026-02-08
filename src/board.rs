@@ -1,12 +1,12 @@
-use crate::chess::{MAX_CHESS_ID, MIN_CHESS_ID};
-use crate::position::Position;
-
 pub const BOARD_WIDTH: usize = 9;
 pub const BOARD_HEIGHT: usize = 10;
 pub type BoardShape = [[i8; BOARD_HEIGHT]; BOARD_WIDTH];
 
 #[cfg(test)]
-pub fn generate_board(chesses: Vec<(i8, Position)>)-> BoardShape {
+use crate::position::Position;
+#[cfg(test)]
+pub fn generate_board(chesses: Vec<(i8, Position)>) -> BoardShape {
+    use crate::chess::{MAX_CHESS_ID, MIN_CHESS_ID};
     let mut board = [[0i8; BOARD_HEIGHT]; BOARD_WIDTH];
     for (id, pos) in chesses {
         assert!(

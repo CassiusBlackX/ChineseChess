@@ -28,8 +28,7 @@ const BLACK_WALK_OPTIONAL_POSITIONS: [Position; 9] = [
     pos!(5, 7),
 ];
 
-const KING_WALK_DIRECTIONS: [Vec2d; 5] = [
-    vec2d!(0, 0),
+const KING_WALK_DIRECTIONS: [Vec2d; 4] = [
     vec2d!(1, 0),
     vec2d!(0, 1),
     vec2d!(-1, 0),
@@ -90,7 +89,7 @@ impl ChessTrait for King {
 
         for pos in walkable_positions {
             let other = board_status[pos.x][pos.y];
-            if other == 0 || !same_side(self.0.id, other) {
+            if other == 0 || !same_side(id, other) {
                 // other == 0, nobody is here, can walk
                 // !same_side, an enemy is here, eat him
                 self.0.walk_options[self.0.option_count] = Some(pos);
@@ -112,7 +111,7 @@ impl ChessTrait for King {
                 return true;
             }
         }
-        return false;
+        false
     }
 }
 
@@ -120,7 +119,6 @@ impl ChessTrait for King {
 mod test {
     use super::*;
     use crate::board::generate_board;
-    use crate::position::intersection_options;
     use std::collections::HashSet;
 
     fn check_options(expected: &[Position], calculated: &[Option<Position>]) {
@@ -175,11 +173,6 @@ mod test {
         ]);
         let mut king = King::new_with_pos(king_id, king_pos);
         let (walk_options, option_count) = king.walk_options(&board);
-        for pos in walk_options {
-            if let Some(pos) = *pos {
-                eprintln!("pos: {}", pos);
-            }
-        }
         assert_eq!(option_count, 4);
         // only 3 optional positions: (3,1),(4,2),(5,1),(4,0)
         let expected: [Position; 4] = [pos!(3, 1), pos!(4, 2), pos!(5, 1), pos!(4, 0)];

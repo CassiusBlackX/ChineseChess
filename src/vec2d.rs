@@ -1,4 +1,3 @@
-use super::board::{BOARD_HEIGHT, BOARD_WIDTH};
 use std::ops::{Add, AddAssign};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
