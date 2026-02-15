@@ -105,7 +105,7 @@ impl ChessTrait for Servant {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{board::{self, generate_board}, chess::servant};
+    use crate::board::generate_board;
     use std::collections::HashSet;
 
     fn check_options(expected: &[Position], calculated: &[Option<Position>]) {
