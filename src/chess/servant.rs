@@ -77,7 +77,7 @@ impl ChessTrait for Servant {
 
         for pos in walkable_positions {
             let other = board_status[pos.x][pos.y];
-            if other == 0 || !same_side(self.0.id, other) {
+            if other == 0 || !same_side(id, other) {
                 // other == 0, nobody is here, can walk
                 // !same_side, an enemy is here, eat him
                 self.0.walk_options[self.0.option_count] = Some(pos);

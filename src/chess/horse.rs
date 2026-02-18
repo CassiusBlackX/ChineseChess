@@ -69,10 +69,10 @@ impl ChessTrait for Horse {
     ) -> (&'a [Option<Position>], usize) {
         let id = self.0.id;
         let cur_pos = self.0.pos;
-        let potential_obstacles_vecs: [Vec2d; 4] =
+        let potential_obstacles_vec2ds: [Vec2d; 4] =
             [vec2d!(1, 0), vec2d!(0, 1), vec2d!(-1, 0), vec2d!(0, -1)];
         let potential_obstacles_exists: [bool; 4] = std::array::from_fn(|i| {
-            if let Some(obstacle) = cur_pos.checked_add_vec2d(potential_obstacles_vecs[i])
+            if let Some(obstacle) = cur_pos.checked_add_vec2d(potential_obstacles_vec2ds[i])
                 && board_status[obstacle.x][obstacle.y] != 0
             // valid position & other piece
             {
