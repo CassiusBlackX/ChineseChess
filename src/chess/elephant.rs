@@ -114,11 +114,13 @@ impl ChessTrait for Elephant {
         }
         (&self.0.walk_options, self.0.option_count)
     }
-    
+
     fn walk(&mut self, direction: Vec2d) -> bool {
         let new_pos = self.0.pos + direction;
         for pos in self.0.walk_options {
-            if let Some(pos_) = pos && pos_ == new_pos {
+            if let Some(pos_) = pos
+                && pos_ == new_pos
+            {
                 self.0.pos = new_pos;
                 return true;
             }
@@ -147,84 +149,80 @@ mod test {
             );
         }
     }
-    
+
     #[test]
     fn empty() {
         // red left elephant
         let elephant_id = RED_LEFT_ELEPHANT_ID;
-        let elephant_pos = pos!(2,0);
-        let board = generate_board(vec![
-            (elephant_id, elephant_pos)  
-        ]);
+        let elephant_pos = pos!(2, 0);
+        let board = generate_board(vec![(elephant_id, elephant_pos)]);
         let mut elephant = Elephant::new(elephant_id);
         let (walk_options, option_count) = elephant.walk_options(&board);
         assert_eq!(option_count, 2);
         // 2 options: (0,2), (4,2)
-        let expected: [Position; 2] = [pos!(0,2), pos!(4,2)];
+        let expected: [Position; 2] = [pos!(0, 2), pos!(4, 2)];
         check_options(&expected, walk_options);
 
         // black right elephant
         let elephant_id = BLACK_RIGHT_ELEPHANT_ID;
-        let elephant_pos = pos!(6,9);
-        let board = generate_board(vec![
-            (elephant_id, elephant_pos)  
-        ]);
+        let elephant_pos = pos!(6, 9);
+        let board = generate_board(vec![(elephant_id, elephant_pos)]);
         let mut elephant = Elephant::new(elephant_id);
         let (walk_options, option_count) = elephant.walk_options(&board);
         assert_eq!(option_count, 2);
         // 2 options: (0,2), (4,2)
-        let expected: [Position; 2] = [pos!(4,7), pos!(8,7)];
+        let expected: [Position; 2] = [pos!(4, 7), pos!(8, 7)];
         check_options(&expected, walk_options);
     }
 
     #[test]
     fn unreachable_peices() {
         let elephant_id = BLACK_RIGHT_ELEPHANT_ID;
-        let elephant_pos = pos!(8,7);
+        let elephant_pos = pos!(8, 7);
         let board = generate_board(vec![
             (elephant_id, elephant_pos),
-            (-8, pos!(8,9)),
-            (-9, pos!(7,9)),
-            (-11, pos!(7,7)),
-            (-1, pos!(4,9)),
+            (-8, pos!(8, 9)),
+            (-9, pos!(7, 9)),
+            (-11, pos!(7, 7)),
+            (-1, pos!(4, 9)),
         ]);
         let mut elephant = Elephant::new_with_pos(elephant_id, elephant_pos);
         let (walk_options, option_count) = elephant.walk_options(&board);
         assert_eq!(option_count, 2);
-        let expected: [Position; 2] = [pos!(6,9), pos!(6,5)];
+        let expected: [Position; 2] = [pos!(6, 9), pos!(6, 5)];
         check_options(&expected, walk_options);
     }
 
     #[test]
     fn enemy() {
         let elephant_id = RED_RIGHT_ELEPHANT_ID;
-        let elephant_pos = pos!(4,2);
+        let elephant_pos = pos!(4, 2);
         let board = generate_board(vec![
             (elephant_id, elephant_pos),
-            (-5, pos!(6,4)),  // enemy here, can walk
-            (4, pos!(2,0)),  // friend here, cannot walk
+            (-5, pos!(6, 4)), // enemy here, can walk
+            (4, pos!(2, 0)),  // friend here, cannot walk
         ]);
         let mut elephant = Elephant::new_with_pos(elephant_id, elephant_pos);
         let (walk_options, option_count) = elephant.walk_options(&board);
         assert_eq!(option_count, 3);
-        let expected: [Position; 3] = [pos!(6,0), pos!(2,4), pos!(6,4)];
+        let expected: [Position; 3] = [pos!(6, 0), pos!(2, 4), pos!(6, 4)];
         check_options(&expected, walk_options);
-    } 
+    }
 
     #[test]
     fn teammate() {
         let elephant_id = BLACK_LEFT_ELEPHANT_ID;
-        let elephant_pos = pos!(2,5);
+        let elephant_pos = pos!(2, 5);
         let board = generate_board(vec![
             (elephant_id, elephant_pos),
-            (-12, pos!(1,6)),  // teammate here, an obstacle
-            (-11, pos!(2,6)),  // teammate here, but no effect
-            (4, pos!(4, 7)),  // enemy here, eat it
+            (-12, pos!(1, 6)), // teammate here, an obstacle
+            (-11, pos!(2, 6)), // teammate here, but no effect
+            (4, pos!(4, 7)),   // enemy here, eat it
         ]);
         let mut elephant = Elephant::new_with_pos(elephant_id, elephant_pos);
         let (walk_options, option_count) = elephant.walk_options(&board);
-        assert_eq!(option_count,1);
-        let expected: [Position; 1] = [pos!(4,7)];
+        assert_eq!(option_count, 1);
+        let expected: [Position; 1] = [pos!(4, 7)];
         check_options(&expected, walk_options);
     }
 }

@@ -28,12 +28,7 @@ const BLACK_WALK_OPTIONAL_POSITIONS: [Position; 9] = [
     pos!(5, 7),
 ];
 
-const KING_WALK_DIRECTIONS: [Vec2d; 4] = [
-    vec2d!(1, 0),
-    vec2d!(0, 1),
-    vec2d!(-1, 0),
-    vec2d!(0, -1),
-];
+const KING_WALK_DIRECTIONS: [Vec2d; 4] = [vec2d!(1, 0), vec2d!(0, 1), vec2d!(-1, 0), vec2d!(0, -1)];
 
 const WALK_OPTIONS_COUNT: usize = 9;
 
@@ -199,17 +194,17 @@ mod test {
     #[test]
     fn teammate() {
         let king_id = BLACK_KING_ID;
-        let king_pos = pos!(4,7);
+        let king_pos = pos!(4, 7);
         let board = generate_board(vec![
             (king_id, king_pos),
-            (-2, pos!(4,8)),  // block the way up! 
+            (-2, pos!(4, 8)), // block the way up!
             (3, pos!(3, 8)),  // no in the king's way
         ]);
         let mut king = King::new_with_pos(king_id, king_pos);
         let (walk_options, option_count) = king.walk_options(&board);
         assert_eq!(option_count, 2);
         // 2 optional positions: (3,7),(4,7)
-        let expected: [Position; 2] = [pos!(3,7),pos!(5,7)];
+        let expected: [Position; 2] = [pos!(3, 7), pos!(5, 7)];
         check_options(&expected, walk_options);
     }
 }

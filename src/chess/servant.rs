@@ -2,7 +2,7 @@ use crate::chess::{
     BLACK_LEFT_SERVANT_ID, BLACK_RIGHT_SERVANT_ID, Chess, ChessKind, ChessTrait,
     RED_LEFT_SERVANT_ID, RED_RIGHT_SERVANT_ID, same_side,
 };
-use crate::position::{intersection_option, Position};
+use crate::position::{Position, intersection_option};
 
 use crate::vec2d::Vec2d;
 use crate::{pos, vec2d};
@@ -13,12 +13,8 @@ const RED_WALK_OPTIONAL_POSITIONS: [Position; 5] =
 const BLACK_WALK_OPTIONAL_POSITIONS: [Position; 5] =
     [pos!(3, 9), pos!(4, 8), pos!(5, 9), pos!(3, 7), pos!(5, 7)];
 
-const SERVANT_WALK_DIRECTIONS: [Vec2d; 4] = [
-    vec2d!(1, 1),
-    vec2d!(-1, 1),
-    vec2d!(-1, -1),
-    vec2d!(1, -1),
-];
+const SERVANT_WALK_DIRECTIONS: [Vec2d; 4] =
+    [vec2d!(1, 1), vec2d!(-1, 1), vec2d!(-1, -1), vec2d!(1, -1)];
 
 const WALK_OPTIONS_COUNT: usize = 5;
 
@@ -72,8 +68,7 @@ impl ChessTrait for Servant {
         let cur_pos = self.0.pos;
         let reachable_positions: [Option<Position>; SERVANT_WALK_DIRECTIONS.len()] =
             std::array::from_fn(|i| cur_pos.checked_add_vec2d(SERVANT_WALK_DIRECTIONS[i]));
-        let walkable_positions =
-            intersection_option(&optional_positions, &reachable_positions);
+        let walkable_positions = intersection_option(&optional_positions, &reachable_positions);
 
         for pos in walkable_positions {
             let other = board_status[pos.x][pos.y];
@@ -154,16 +149,16 @@ mod test {
         let servant_pos = pos!(4, 1);
         let board = generate_board(vec![
             (servant_id, servant_pos),
-            (5, pos!(2,0)),
-            (-13, pos!(3,2)),
-            (9, pos!(4,2)),
+            (5, pos!(2, 0)),
+            (-13, pos!(3, 2)),
+            (9, pos!(4, 2)),
             (-9, pos!(8, 6)),
         ]);
         let mut servant = Servant::new_with_pos(servant_id, servant_pos);
         let (walk_options, option_count) = servant.walk_options(&board);
         assert_eq!(option_count, 4);
         // 4 options: (3,0),(3,2),(5,0),(5,2)
-        let expected: [Position; 4] = [pos!(3,0),pos!(3,2),pos!(5,0),pos!(5,2)];
+        let expected: [Position; 4] = [pos!(3, 0), pos!(3, 2), pos!(5, 0), pos!(5, 2)];
         check_options(&expected, walk_options);
     }
 
@@ -194,7 +189,7 @@ mod test {
             (8, pos!(3, 1)),
             (9, pos!(4, 1)),
             (10, pos!(4, 2)),
-            (-11, pos!(3,3)),
+            (-11, pos!(3, 3)),
         ]);
         let mut servant = Servant::new_with_pos(servant_id, servant_pos);
         let (_, option_count) = servant.walk_options(&board);

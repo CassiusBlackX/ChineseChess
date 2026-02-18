@@ -146,13 +146,13 @@ mod test {
         assert_eq!(option_count, 17);
         let expected: [Position; 17] = std::array::from_fn(|i| {
             if i < 4 {
-                pos!(i+5,2)
+                pos!(i + 5, 2)
             } else if i < 11 {
-                pos!(4, i-1)
+                pos!(4, i - 1)
             } else if i < 15 {
-                pos!(i-11, 2)
+                pos!(i - 11, 2)
             } else {
-                pos!(4, i-15)
+                pos!(4, i - 15)
             }
         });
         check_options(&expected, walk_options);
@@ -171,16 +171,16 @@ mod test {
         ]);
         let mut car = Car::new_with_pos(car_id, car_pos);
         let (walk_options, option_count) = car.walk_options(&board);
-        assert_eq!(option_count, 1+5+4+3);
-        let expected: [Position; 1+5+4+3] = std::array::from_fn(|i| {
+        assert_eq!(option_count, 1 + 5 + 4 + 3);
+        let expected: [Position; 1 + 5 + 4 + 3] = std::array::from_fn(|i| {
             if i < 1 {
                 pos!(2, 6)
             } else if i < 1 + 5 {
                 pos!(3, i)
-            } else if i < 1+5+4 {
-                pos!(i-2,6)
+            } else if i < 1 + 5 + 4 {
+                pos!(i - 2, 6)
             } else {
-                pos!(3, i-3)
+                pos!(3, i - 3)
             }
         });
         check_options(&expected, walk_options);
@@ -189,23 +189,23 @@ mod test {
     #[test]
     fn teammate() {
         let car_id = BLACK_RIGHT_CAR_ID;
-        let car_pos = pos!(4,4);
+        let car_pos = pos!(4, 4);
         let board = generate_board(vec![
             (car_id, car_pos),
             (12, pos!(4, 3)),  // 1
-            (-11, pos!(4, 6)),  // 1
+            (-11, pos!(4, 6)), // 1
             (-6, pos!(3, 4)),  // 0
         ]);
         let mut car = Car::new_with_pos(car_id, car_pos);
-        let(walk_options, option_count) = car.walk_options(&board);
-        assert_eq!(option_count, 1+1+4);
-        let expected: [Position; 1+1+4] = std::array::from_fn(|i| {
+        let (walk_options, option_count) = car.walk_options(&board);
+        assert_eq!(option_count, 1 + 1 + 4);
+        let expected: [Position; 1 + 1 + 4] = std::array::from_fn(|i| {
             if i < 1 {
-                pos!(4,3)
+                pos!(4, 3)
             } else if i < 2 {
-                pos!(4,5)
+                pos!(4, 5)
             } else {
-                pos!(5+i-2,4)
+                pos!(5 + i - 2, 4)
             }
         });
         check_options(&expected, walk_options);

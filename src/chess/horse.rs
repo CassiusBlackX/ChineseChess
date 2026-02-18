@@ -191,9 +191,9 @@ mod test {
         let horse_pos = pos!(1, 5);
         let board = generate_board(vec![
             (horse_id, horse_pos),
-            (11, pos!(2, 3)),  // enemy to eat
+            (11, pos!(2, 3)), // enemy to eat
             (12, pos!(0, 4)),
-            (-11, pos!(2, 5)),  // hinder
+            (-11, pos!(2, 5)), // hinder
             (-12, pos!(0, 6)),
         ]);
         let mut horse = Horse::new_with_pos(horse_id, horse_pos);
