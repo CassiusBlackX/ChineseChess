@@ -1,5 +1,5 @@
 use crate::chess::{BLACK_KING_ID, Chess, ChessKind, ChessTrait, RED_KING_ID, same_side};
-use crate::position::{self, Position};
+use crate::position::{Position, intersection_option};
 use crate::vec2d::Vec2d;
 
 use crate::{pos, vec2d};
@@ -79,8 +79,7 @@ impl ChessTrait for King {
         let cur_pos = self.0.pos;
         let reachable_positions: [Option<Position>; KING_WALK_DIRECTIONS.len()] =
             std::array::from_fn(|i| cur_pos.checked_add_vec2d(KING_WALK_DIRECTIONS[i]));
-        let walkable_positions =
-            position::intersection_option(&optional_positions, &reachable_positions);
+        let walkable_positions = intersection_option(&optional_positions, &reachable_positions);
 
         for pos in walkable_positions {
             let other = board_status[pos.x][pos.y];
