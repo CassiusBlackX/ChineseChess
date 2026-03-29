@@ -56,12 +56,19 @@ pub const BLACK_LEFTEST_PAWN_ID: i8 = -15;
 pub const BLACK_RIGHTEST_PAWN_ID: i8 = -16;
 
 mod cannon;
+pub use cannon::Cannon;
 mod car;
+pub use car::Car;
 mod elephant;
+pub use elephant::Elephant;
 mod horse;
+pub use horse::Horse;
 mod king;
+pub use king::King;
 mod pawn;
+pub use pawn::Pawn;
 mod servant;
+pub use servant::Servant;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ChessKind {
@@ -81,6 +88,8 @@ pub trait ChessTrait {
     fn killed(&mut self);
     fn is_alive(&self) -> bool;
     fn get_name(&self) -> char;
+    fn get_pos(&self) -> Position;
+    fn get_id(&self) -> i8;
 }
 
 #[derive(Debug, Clone)]
@@ -117,6 +126,19 @@ impl<const N: usize> Chess<N> {
 
     pub fn get_name(&self) -> char {
         self.name
+    }
+
+    pub fn get_pos(&self) -> Position {
+        self.pos
+    }
+
+    pub fn get_id(&self) -> i8 {
+        self.id
+    }
+
+    pub fn reset_walk_options(&mut self) {
+        self.walk_options = [None; N];
+        self.option_count = 0;
     }
 }
 

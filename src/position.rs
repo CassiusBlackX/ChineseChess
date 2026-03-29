@@ -46,7 +46,7 @@ impl Add<Vec2d> for Position {
             new_x
         );
         assert!(
-            new_y >= 0 && new_y <= BOARD_HEIGHT as i8,
+            new_y >= 0 && new_y < BOARD_HEIGHT as i8,
             "new_y: {} out of range",
             new_y
         );
@@ -64,7 +64,7 @@ impl AddAssign<Vec2d> for Position {
             new_x
         );
         assert!(
-            new_y >= 0 && new_y <= BOARD_HEIGHT as i8,
+            new_y >= 0 && new_y < BOARD_HEIGHT as i8,
             "new_y: {} out of range",
             new_y
         );

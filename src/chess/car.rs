@@ -18,7 +18,7 @@ impl Car {
         let pos = match id {
             RED_LEFT_CAR_ID => pos!(0, 0),
             RED_RIGHT_CAR_ID => pos!(8, 0),
-            BLACK_LEFT_CAR_ID => pos!(9, 0),
+            BLACK_LEFT_CAR_ID => pos!(0, 9),
             BLACK_RIGHT_CAR_ID => pos!(8, 9),
             _ => panic!("invalid id for car: {}", id),
         };
@@ -40,16 +40,28 @@ impl ChessTrait for Car {
     fn killed(&mut self) {
         self.0.killed();
     }
+
     fn is_alive(&self) -> bool {
         self.0.is_alive()
     }
+
     fn get_name(&self) -> char {
         self.0.get_name()
     }
+
+    fn get_pos(&self) -> Position {
+        self.0.get_pos()
+    }
+
+    fn get_id(&self) -> i8 {
+        self.0.get_id()
+    }
+
     fn walk_options<'a>(
         &'a mut self,
         board_status: &crate::board::BoardShape,
     ) -> (&'a [Option<Position>], usize) {
+        self.0.reset_walk_options();
         let id = self.0.id;
         let cur_pos = self.0.pos;
         for direction in CAR_WALK_DIRECTIONS {

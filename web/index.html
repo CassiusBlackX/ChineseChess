@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>中国象棋 WASM Demo</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <section class="panel">
+        <h1>中国象棋 · Rust + WASM</h1>
+        <p id="status">加载中...</p>
+        <div class="toolbar">
+          <button id="reset">重开一局</button>
+        </div>
+      </section>
+      <section>
+        <div id="board" class="board" aria-label="中国象棋棋盘"></div>
+      </section>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

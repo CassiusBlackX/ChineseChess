@@ -61,16 +61,28 @@ impl ChessTrait for Elephant {
     fn killed(&mut self) {
         self.0.killed();
     }
+
     fn is_alive(&self) -> bool {
         self.0.is_alive()
     }
+
     fn get_name(&self) -> char {
         self.0.get_name()
     }
+
+    fn get_pos(&self) -> Position {
+        self.0.get_pos()
+    }
+
+    fn get_id(&self) -> i8 {
+        self.0.get_id()
+    }
+
     fn walk_options<'a>(
         &'a mut self,
         board_status: &crate::board::BoardShape,
     ) -> (&'a [Option<Position>], usize) {
+        self.0.reset_walk_options();
         let id = self.0.id;
         let optinal_positions = if id > 0 {
             RED_WALK_OPTIONAL_POSITIONS
@@ -132,7 +144,7 @@ impl ChessTrait for Elephant {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{board::generate_board, chess::elephant};
+    use crate::board::generate_board;
     use std::collections::HashSet;
 
     fn check_options(expected: &[Position], calculated: &[Option<Position>]) {
