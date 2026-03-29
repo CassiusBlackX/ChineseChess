@@ -212,6 +212,20 @@ impl Board {
         }
     }
 
+    pub fn from_board_status(board_status: BoardShape) -> Self {
+        let ids = Self::all_piece_ids();
+        let pieces = std::array::from_fn(|i| {
+            let id = ids[i];
+            let pos = Self::find_piece_pos(&board_status, id);
+            Self::build_piece(id, pos)
+        });
+
+        Self {
+            pieces,
+            board_status,
+        }
+    }
+
     pub fn get_piece(&self, id: i8) -> Option<&Box<dyn ChessTrait>> {
         Self::piece_index(id).map(|idx| &self.pieces[idx])
     }
