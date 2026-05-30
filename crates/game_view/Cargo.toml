@@ -1,0 +1,8 @@
+[package]
+name = "game_view"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+board_engine = { path = "../board_engine" }
+serde = { version = "1", features = ["derive"] }
