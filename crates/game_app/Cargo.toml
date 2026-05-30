@@ -1,0 +1,17 @@
+[package]
+name = "game_app"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "game_app"
+path = "src/main.rs"
+
+[dependencies]
+board_engine = { path = "../board_engine" }
+game_view = { path = "../game_view" }
+xiangqi = { path = "../xiangqi" }
+gomoku = { path = "../gomoku" }
+eframe = "0.29"
+ratatui = "0.29"
+crossterm = "0.28"

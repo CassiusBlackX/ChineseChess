@@ -1,26 +1,30 @@
 use std::collections::HashMap;
 
-use chinese_chess::{
-    game::SnapshotDto,
-    view_adapter::{GameViewAdapter, SharedGameAdapter, ViewInput, ViewOutput},
-};
 use eframe::egui::{self, Color32, FontData, FontDefinitions, FontFamily, RichText};
+use game_view::{GameViewAdapter, SnapshotDto, ViewInput, ViewOutput};
 
-struct DesktopChessApp {
-    adapter: SharedGameAdapter,
+use crate::ui::common::{format_status, piece_color_rgb};
+
+struct DesktopGameApp {
+    adapter: Box<dyn GameViewAdapter>,
     snapshot: SnapshotDto,
+    game_title: String,
 }
 
-impl DesktopChessApp {
-    fn new() -> Self {
-        let mut adapter = SharedGameAdapter::new();
+impl DesktopGameApp {
+    fn new(mut adapter: Box<dyn GameViewAdapter>) -> Self {
+        let game_title = adapter.game_title().to_string();
         let snapshot = match adapter.handle(ViewInput::Snapshot) {
             ViewOutput::Snapshot(s) => s,
             ViewOutput::Moves(_) | ViewOutput::Error(_) => {
                 panic!("adapter should return snapshot for ViewInput::Snapshot")
             }
         };
-        Self { adapter, snapshot }
+        Self {
+            adapter,
+            snapshot,
+            game_title,
+        }
     }
 
     fn apply_cjk_font(ctx: &egui::Context) {
@@ -58,28 +62,19 @@ impl DesktopChessApp {
     }
 }
 
-impl eframe::App for DesktopChessApp {
+impl eframe::App for DesktopGameApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let title = self.game_title.clone();
         egui::TopBottomPanel::top("status_panel").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.heading("中国象棋 · 原生桌面版 (Rust)");
+                ui.heading(format!("{} · 原生桌面版 (Rust)", title));
                 if ui.button("重开一局").clicked()
                     && let ViewOutput::Snapshot(snapshot) = self.adapter.handle(ViewInput::Reset)
                 {
                     self.snapshot = snapshot;
                 }
             });
-
-            let turn_text = if self.snapshot.turn > 0 { "红方" } else { "黑方" };
-            let mut status = format!("{} | 当前回合: {}", self.snapshot.message, turn_text);
-            if self.snapshot.game_over {
-                let winner = if self.snapshot.winner > 0 { "红方" } else { "黑方" };
-                status.push_str(&format!(" | 对局结束: {}胜", winner));
-            } else if self.snapshot.in_check_side != 0 {
-                let checked = if self.snapshot.in_check_side > 0 { "红方" } else { "黑方" };
-                status.push_str(&format!(" | 被将军: {}", checked));
-            }
-            ui.label(status);
+            ui.label(format_status(&self.snapshot, &title));
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -93,12 +88,22 @@ impl eframe::App for DesktopChessApp {
                 legal_moves.insert((mv.x, mv.y), true);
             }
 
+            let last_move = self
+                .snapshot
+                .last_move
+                .as_ref()
+                .map(|m| (m.x, m.y));
+
+            let board_w = self.adapter.board_width();
+            let board_h = self.adapter.board_height();
+            let cell_size = if board_w > 10 { 36.0 } else { 52.0 };
+
             ui.vertical_centered(|ui| {
                 egui::Grid::new("board_grid")
                     .spacing([0.0, 0.0])
                     .show(ui, |ui| {
-                        for y in (0..self.adapter.board_height()).rev() {
-                            for x in 0..self.adapter.board_width() {
+                        for y in (0..board_h).rev() {
+                            for x in 0..board_w {
                                 let is_selected = self
                                     .snapshot
                                     .selected
@@ -106,27 +111,32 @@ impl eframe::App for DesktopChessApp {
                                     .map(|s| s.x == x && s.y == y)
                                     .unwrap_or(false);
                                 let is_hint = legal_moves.contains_key(&(x, y));
+                                let is_last = last_move == Some((x, y));
 
                                 let (symbol, side) = piece_map
                                     .get(&(x, y))
                                     .cloned()
                                     .unwrap_or_else(|| (" ".to_string(), 0));
 
-                                let mut text = RichText::new(symbol).size(28.0);
-                                if side > 0 {
-                                    text = text.color(Color32::from_rgb(183, 34, 34));
-                                } else if side < 0 {
-                                    text = text.color(Color32::from_rgb(47, 42, 38));
+                                let mut text = RichText::new(symbol).size(if board_w > 10 { 22.0 } else { 28.0 });
+                                if side != 0 {
+                                    let (r, g, b) = piece_color_rgb(side);
+                                    text = text.color(Color32::from_rgb(r, g, b));
                                 }
 
                                 let mut button = egui::Button::new(text)
-                                    .min_size(egui::vec2(52.0, 52.0))
+                                    .min_size(egui::vec2(cell_size, cell_size))
                                     .fill(Color32::from_rgb(242, 221, 185));
 
                                 if is_selected {
                                     button = button.stroke(egui::Stroke::new(
                                         2.0,
                                         Color32::from_rgb(192, 125, 58),
+                                    ));
+                                } else if is_last {
+                                    button = button.stroke(egui::Stroke::new(
+                                        2.0,
+                                        Color32::from_rgb(70, 130, 200),
                                     ));
                                 } else if is_hint {
                                     button = button.stroke(egui::Stroke::new(
@@ -156,18 +166,22 @@ impl eframe::App for DesktopChessApp {
     }
 }
 
-pub fn run_gui() -> Result<(), eframe::Error> {
+pub fn run_gui(adapter: Box<dyn GameViewAdapter>) -> Result<(), eframe::Error> {
+    let title = format!("{} Desktop", adapter.game_title());
+    let window_w = if adapter.board_width() > 10 { 680.0 } else { 620.0 };
+    let window_h = if adapter.board_height() > 10 { 820.0 } else { 760.0 };
+
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([620.0, 760.0]),
+        viewport: egui::ViewportBuilder::default().with_inner_size([window_w, window_h]),
         ..Default::default()
     };
 
     eframe::run_native(
-        "Chinese Chess Desktop",
+        &title,
         options,
-        Box::new(|cc| {
-            DesktopChessApp::apply_cjk_font(&cc.egui_ctx);
-            Ok(Box::new(DesktopChessApp::new()))
+        Box::new(move |cc| {
+            DesktopGameApp::apply_cjk_font(&cc.egui_ctx);
+            Ok(Box::new(DesktopGameApp::new(adapter)))
         }),
     )
 }
