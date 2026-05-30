@@ -65,12 +65,9 @@ button {
 
 .board {
   width: min(92vw, 560px);
-  aspect-ratio: 9 / 10;
   border: 2px solid var(--line);
   background: #f2ddb9;
   display: grid;
-  grid-template-columns: repeat(9, 1fr);
-  grid-template-rows: repeat(10, 1fr);
   overflow: hidden;
 }
 
@@ -93,14 +90,6 @@ button {
   display: grid;
   place-items: center;
   position: relative;
-}
-
-.cell:nth-child(9n + 1) {
-  border-left: 1px solid var(--line-soft);
-}
-
-.cell:nth-child(-n + 9) {
-  border-top: 1px solid var(--line-soft);
 }
 
 .piece {
@@ -140,6 +129,10 @@ button {
 
 .cell.hint::after {
   border: 2px dashed var(--hint);
+}
+
+.cell.last-move::after {
+  border: 2px solid #4682b4;
 }
 
 @keyframes pulse {

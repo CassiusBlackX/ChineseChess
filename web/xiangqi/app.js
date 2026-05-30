@@ -1,4 +1,4 @@
-import init, { WasmGame } from "../pkg/chinese_chess.js";
+import init, { WasmGame } from "../../pkg/xiangqi/xiangqi.js";
 
 const statusEl = document.querySelector("#status");
 const boardEl = document.querySelector("#board");
@@ -27,19 +27,29 @@ function moveSet(moves) {
 }
 
 function render(snapshot) {
+  const width = snapshot.width ?? 9;
+  const height = snapshot.height ?? 10;
   const turnText = snapshot.turn > 0 ? "红方" : "黑方";
-  const gameStateText = snapshot.game_over
-    ? ` | 对局结束: ${snapshot.winner > 0 ? "红方" : "黑方"}胜`
-    : "";
+  let gameStateText = "";
+  if (snapshot.game_over) {
+    gameStateText = ` | 对局结束: ${snapshot.winner > 0 ? "红方" : "黑方"}胜`;
+  } else if (snapshot.in_check_side) {
+    const checked = snapshot.in_check_side > 0 ? "红方" : "黑方";
+    gameStateText = ` | 被将军: ${checked}`;
+  }
   statusEl.textContent = `${snapshot.message} | 当前回合: ${turnText}${gameStateText}`;
 
   const pieces = pieceMap(snapshot.pieces);
   const moves = moveSet(snapshot.legal_moves);
   const selected = snapshot.selected ? keyOf(snapshot.selected.x, snapshot.selected.y) : null;
 
+  boardEl.style.gridTemplateColumns = `repeat(${width}, 1fr)`;
+  boardEl.style.gridTemplateRows = `repeat(${height}, 1fr)`;
+  boardEl.style.aspectRatio = `${width} / ${height}`;
+
   boardEl.innerHTML = "";
-  for (let y = 9; y >= 0; y -= 1) {
-    for (let x = 0; x < 9; x += 1) {
+  for (let y = height - 1; y >= 0; y -= 1) {
+    for (let x = 0; x < width; x += 1) {
       const k = keyOf(x, y);
       const cell = document.createElement("button");
       cell.className = "cell";

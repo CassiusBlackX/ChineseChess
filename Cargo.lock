@@ -487,6 +487,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "board_engine"
+version = "0.1.0"
+
+[[package]]
 name = "bumpalo"
 version = "3.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -627,18 +631,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ced0551234e87afee12411d535648dd89d2e7f34c78b753395567aff3d447ff"
 dependencies = [
  "libc",
-]
-
-[[package]]
-name = "chinese_chess"
-version = "0.1.0"
-dependencies = [
- "crossterm",
- "eframe",
- "ratatui",
- "serde",
- "serde-wasm-bindgen",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -1299,6 +1291,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "game_app"
+version = "0.1.0"
+dependencies = [
+ "board_engine",
+ "crossterm",
+ "eframe",
+ "game_view",
+ "gomoku",
+ "ratatui",
+ "xiangqi",
+]
+
+[[package]]
+name = "game_view"
+version = "0.1.0"
+dependencies = [
+ "board_engine",
+ "serde",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1453,6 +1466,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2c4ee00b289aba7a9e5306d57c2d05499b2e5dc427f84ac708bd2c090212cf3e"
 dependencies = [
  "gl_generator",
+]
+
+[[package]]
+name = "gomoku"
+version = "0.1.0"
+dependencies = [
+ "board_engine",
+ "game_view",
+ "serde",
+ "serde-wasm-bindgen",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -4301,6 +4325,17 @@ checksum = "ec1cdab258fb55c0da61328dc52c8764709b249011b2cad0454c72f0bf10a1f6"
 dependencies = [
  "libc",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "xiangqi"
+version = "0.1.0"
+dependencies = [
+ "board_engine",
+ "game_view",
+ "serde",
+ "serde-wasm-bindgen",
+ "wasm-bindgen",
 ]
 
 [[package]]

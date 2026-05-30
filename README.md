@@ -1,6 +1,20 @@
-# 中国象棋（Rust）
+# 棋类游戏引擎（Rust）
 
-用 Rust 实现的中国象棋规则与对局逻辑，带桌面 GUI、终端 TUI 和浏览器 WASM 演示。
+通用棋类引擎框架，当前内置**中国象棋**与**五子棋**，支持桌面 GUI、终端 TUI 和浏览器 WASM。
+
+## 项目结构
+
+```
+crates/
+  board_engine/   通用网格原语（Position、Grid）
+  game_view/      UI 契约（SnapshotDto、GameViewAdapter）
+  xiangqi/        中国象棋规则
+  gomoku/         五子棋规则（15×15，黑先，五连胜）
+  game_app/       统一启动器（GUI / TUI）
+web/
+  xiangqi/        象棋 WASM 网页
+  gomoku/         五子棋 WASM 网页
+```
 
 ## 环境
 
@@ -12,9 +26,11 @@
 ### 桌面 / 终端
 
 ```bash
-cargo run          # 启动时选择 GUI 或 TUI
-cargo run -- gui   # 原生窗口（eframe / egui）
-cargo run -- tui   # 终端界面（ratatui）
+cargo run -p game_app -- xiangqi gui   # 中国象棋 · 原生窗口
+cargo run -p game_app -- xiangqi tui   # 中国象棋 · 终端
+cargo run -p game_app -- gomoku gui    # 五子棋 · 原生窗口
+cargo run -p game_app -- gomoku tui    # 五子棋 · 终端
+cargo run -p game_app                  # 交互式选择游戏与模式
 ```
 
 ### 浏览器
@@ -22,30 +38,29 @@ cargo run -- tui   # 终端界面（ratatui）
 ```bash
 rustup target add wasm32-unknown-unknown
 cargo install wasm-pack
-wasm-pack build --target web --out-dir pkg
+
+wasm-pack build crates/xiangqi --target web --out-dir pkg/xiangqi
+wasm-pack build crates/gomoku --target web --out-dir pkg/gomoku
 ```
 
-在项目根目录起一个静态文件服务，例如：
+在项目根目录启动静态文件服务，例如：
 
 ```bash
 python -m http.server 8000
 ```
 
-浏览器打开：<http://127.0.0.1:8000/web/>
+- 中国象棋：<http://127.0.0.1:8000/web/xiangqi/>
+- 五子棋：<http://127.0.0.1:8000/web/gomoku/>
 
 ## 测试
 
 ```bash
-cargo test
+cargo test --workspace
 ```
 
-## 目录
+## 扩展新游戏
 
-```
-src/           棋盘、棋子走法、对局状态、视图适配
-src/ui/        桌面 GUI、终端 TUI
-src/wasm_api.rs  WASM 导出（仅 wasm32）
-web/           网页棋盘与交互
-```
-
-规则与状态在 `src/`；各端 UI 只消费快照（`SnapshotDto`）和点击/走子接口。
+1. 在 `crates/` 下新建游戏 crate，依赖 `board_engine` 与 `game_view`
+2. 实现 `GameViewAdapter` trait
+3. 在 `game_app/src/launcher.rs` 注册游戏
+4. 可选：添加 `wasm_api.rs` 与 `web/<game>/` 前端
