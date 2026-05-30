@@ -1,48 +1,24 @@
-use crate::game::{Game, MoveDto, SnapshotDto};
+use game_view::{GameViewAdapter, ViewInput, ViewOutput};
 
-pub enum ViewInput {
-    Snapshot,
-    Reset,
-    Click { x: usize, y: usize },
-    TryMove {
-        from_x: usize,
-        from_y: usize,
-        to_x: usize,
-        to_y: usize,
-    },
-    LegalMoves { x: usize, y: usize },
-}
+use crate::game::Game;
 
-pub enum ViewOutput {
-    Snapshot(SnapshotDto),
-    Moves(Vec<MoveDto>),
-    Error(String),
-}
-
-pub trait GameViewAdapter {
-    fn handle(&mut self, input: ViewInput) -> ViewOutput;
-    fn board_width(&self) -> usize;
-    fn board_height(&self) -> usize;
-    fn current_turn(&self) -> i8;
-}
-
-pub struct SharedGameAdapter {
+pub struct XiangqiAdapter {
     game: Game,
 }
 
-impl SharedGameAdapter {
+impl XiangqiAdapter {
     pub fn new() -> Self {
         Self { game: Game::new() }
     }
 }
 
-impl Default for SharedGameAdapter {
+impl Default for XiangqiAdapter {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl GameViewAdapter for SharedGameAdapter {
+impl GameViewAdapter for XiangqiAdapter {
     fn handle(&mut self, input: ViewInput) -> ViewOutput {
         match input {
             ViewInput::Snapshot => ViewOutput::Snapshot(self.game.snapshot()),
@@ -74,5 +50,9 @@ impl GameViewAdapter for SharedGameAdapter {
 
     fn current_turn(&self) -> i8 {
         self.game.current_turn()
+    }
+
+    fn game_title(&self) -> &str {
+        "中国象棋"
     }
 }

@@ -1,16 +1,13 @@
 pub const BOARD_WIDTH: usize = 9;
 pub const BOARD_HEIGHT: usize = 10;
-pub type BoardShape = [[i8; BOARD_HEIGHT]; BOARD_WIDTH];
 
-use crate::{
-    chess::{MAX_CHESS_ID, MIN_CHESS_ID, *},
-    position::Position,
-    vec2d::Vec2d,
-};
+use board_engine::{Grid, Position, Vec2d};
+
+use crate::chess::{MAX_CHESS_ID, MIN_CHESS_ID, *};
+
 #[cfg(test)]
-pub fn generate_board(chesses: Vec<(i8, Position)>) -> BoardShape {
-    use crate::chess::{MAX_CHESS_ID, MIN_CHESS_ID};
-    let mut board = [[0i8; BOARD_HEIGHT]; BOARD_WIDTH];
+pub fn generate_board(chesses: Vec<(i8, Position)>) -> Grid<i8> {
+    let mut board = Grid::<i8>::new(BOARD_WIDTH, BOARD_HEIGHT);
     for (id, pos) in chesses {
         assert!(
             MIN_CHESS_ID <= id && id <= MAX_CHESS_ID,
@@ -18,14 +15,12 @@ pub fn generate_board(chesses: Vec<(i8, Position)>) -> BoardShape {
             id
         );
         assert!(
-            pos.x <= BOARD_WIDTH && pos.y <= BOARD_HEIGHT,
+            pos.x < BOARD_WIDTH && pos.y < BOARD_HEIGHT,
             "invalid pos: {}",
             pos
         );
-
-        board[pos.x][pos.y] = id;
+        board.set(pos.x, pos.y, id);
     }
-
     board
 }
 
@@ -38,7 +33,7 @@ pub enum WalkErr {
 
 pub struct Board {
     pieces: [Box<dyn ChessTrait>; 32],
-    board_status: BoardShape,
+    board_status: Grid<i8>,
 }
 
 impl Board {
@@ -79,12 +74,10 @@ impl Board {
         ]
     }
 
-    fn find_piece_pos(board_status: &BoardShape, id: i8) -> Option<Position> {
-        for x in 0..BOARD_WIDTH {
-            for y in 0..BOARD_HEIGHT {
-                if board_status[x][y] == id {
-                    return Some(Position { x, y });
-                }
+    fn find_piece_pos(board_status: &Grid<i8>, id: i8) -> Option<Position> {
+        for (x, y) in board_status.iter_coords() {
+            if board_status.get(x, y) == Some(id) {
+                return Some(Position { x, y });
             }
         }
         None
@@ -200,11 +193,11 @@ impl Board {
             Box::new(Pawn::new(BLACK_LEFTEST_PAWN_ID)),
             Box::new(Pawn::new(BLACK_RIGHTEST_PAWN_ID)),
         ];
-        let mut board_status = [[0i8; BOARD_HEIGHT]; BOARD_WIDTH];
+        let mut board_status = Grid::<i8>::new(BOARD_WIDTH, BOARD_HEIGHT);
         for piece in &pieces {
             let pos = piece.get_pos();
             let id = piece.get_id();
-            board_status[pos.x][pos.y] = id;
+            board_status.set(pos.x, pos.y, id);
         }
         Self {
             pieces,
@@ -212,7 +205,7 @@ impl Board {
         }
     }
 
-    pub fn from_board_status(board_status: BoardShape) -> Self {
+    pub fn from_board_status(board_status: Grid<i8>) -> Self {
         let ids = Self::all_piece_ids();
         let pieces = std::array::from_fn(|i| {
             let id = ids[i];
@@ -235,12 +228,12 @@ impl Board {
         Some(&mut self.pieces[idx])
     }
 
-    pub fn board_status(&self) -> &BoardShape {
+    pub fn board_status(&self) -> &Grid<i8> {
         &self.board_status
     }
 
     pub fn id_at(&self, pos: Position) -> i8 {
-        self.board_status[pos.x][pos.y]
+        self.board_status.get(pos.x, pos.y).unwrap_or(0)
     }
 
     pub fn piece_name(&self, id: i8) -> Option<char> {
@@ -248,7 +241,7 @@ impl Board {
     }
 
     pub fn walk_options(&mut self, id: i8) -> &[Option<Position>] {
-        let board_status = self.board_status;
+        let board_status = self.board_status.clone();
         let piece = self.get_piece_mut(id).expect("invalid id");
         let (walk_options, _) = piece.walk_options(&board_status);
         walk_options
@@ -261,11 +254,13 @@ impl Board {
         }
 
         let cur_pos = self.pieces[piece_idx].get_pos();
-        let Some(target_pos) = cur_pos.checked_add_vec2d(target_vec2d) else {
+        let Some(target_pos) =
+            cur_pos.checked_add_vec2d(target_vec2d, BOARD_WIDTH, BOARD_HEIGHT)
+        else {
             return Err(WalkErr::OutOfBound);
         };
 
-        let board_status = self.board_status;
+        let board_status = self.board_status.clone();
         let can_walk = {
             let piece = &mut self.pieces[piece_idx];
             let (options, _) = piece.walk_options(&board_status);
@@ -275,7 +270,7 @@ impl Board {
             return Err(WalkErr::Unreachable);
         }
 
-        let target_id = self.board_status[target_pos.x][target_pos.y];
+        let target_id = self.board_status.get(target_pos.x, target_pos.y).unwrap_or(0);
         if target_id != 0 && same_side(id, target_id) {
             return Err(WalkErr::Hindered);
         }
@@ -290,8 +285,8 @@ impl Board {
             return Err(WalkErr::Unreachable);
         }
 
-        self.board_status[cur_pos.x][cur_pos.y] = 0;
-        self.board_status[target_pos.x][target_pos.y] = id;
+        self.board_status.set(cur_pos.x, cur_pos.y, 0);
+        self.board_status.set(target_pos.x, target_pos.y, id);
         Ok(())
     }
 }
@@ -307,14 +302,14 @@ impl Clone for Board {
 
         Self {
             pieces,
-            board_status: self.board_status,
+            board_status: self.board_status.clone(),
         }
     }
 }
 
 #[cfg(test)]
 impl Board {
-    pub(crate) fn get_board_status(&self) -> &BoardShape {
+    pub(crate) fn get_board_status(&self) -> &Grid<i8> {
         &self.board_status
     }
 }
@@ -341,13 +336,11 @@ mod test {
             assert_eq!(piece.get_name(), names[i]);
         }
 
-        for i in 0..BOARD_WIDTH {
-            for j in 0..BOARD_HEIGHT {
-                let id = board.get_board_status()[i][j];
-                if id != 0 {
-                    let piece = board.get_piece(id).unwrap();
-                    assert_eq!(piece.get_pos(), pos!(i, j));
-                }
+        for (x, y) in (0..BOARD_WIDTH).flat_map(|x| (0..BOARD_HEIGHT).map(move |y| (x, y))) {
+            let id = board.get_board_status().get(x, y).unwrap_or(0);
+            if id != 0 {
+                let piece = board.get_piece(id).unwrap();
+                assert_eq!(piece.get_pos(), pos!(x, y));
             }
         }
     }

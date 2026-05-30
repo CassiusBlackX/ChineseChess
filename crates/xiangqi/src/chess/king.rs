@@ -1,6 +1,8 @@
+use crate::board::{BOARD_HEIGHT, BOARD_WIDTH};
 use crate::chess::{BLACK_KING_ID, Chess, ChessKind, ChessTrait, RED_KING_ID, same_side};
-use crate::position::{Position, intersection_option};
-use crate::vec2d::Vec2d;
+use board_engine::{Grid, Position};
+use board_engine::position::intersection_option;
+use board_engine::Vec2d;
 
 use crate::{pos, vec2d};
 
@@ -77,7 +79,7 @@ impl ChessTrait for King {
 
     fn walk_options<'a>(
         &'a mut self,
-        board_status: &crate::board::BoardShape,
+        board_status: &Grid<i8>,
     ) -> (&'a [Option<Position>], usize) {
         self.0.reset_walk_options();
         let id = self.0.id;
@@ -89,11 +91,11 @@ impl ChessTrait for King {
 
         let cur_pos = self.0.pos;
         let reachable_positions: [Option<Position>; KING_WALK_DIRECTIONS.len()] =
-            std::array::from_fn(|i| cur_pos.checked_add_vec2d(KING_WALK_DIRECTIONS[i]));
+            std::array::from_fn(|i| cur_pos.checked_add_vec2d(KING_WALK_DIRECTIONS[i], BOARD_WIDTH, BOARD_HEIGHT));
         let walkable_positions = intersection_option(&optional_positions, &reachable_positions);
 
         for pos in walkable_positions {
-            let other = board_status[pos.x][pos.y];
+            let other = crate::chess::cell(board_status, pos.x, pos.y);
             if other == 0 || !same_side(id, other) {
                 // other == 0, nobody is here, can walk
                 // !same_side, an enemy is here, eat him

@@ -1,9 +1,11 @@
+use crate::board::{BOARD_HEIGHT, BOARD_WIDTH};
+use board_engine::Grid;
 use crate::chess::{
     BLACK_LEFT_CAR_ID, BLACK_RIGHT_CAR_ID, Chess, ChessKind, ChessTrait, RED_LEFT_CAR_ID,
     RED_RIGHT_CAR_ID, same_side,
 };
-use crate::position::Position;
-use crate::vec2d::Vec2d;
+use board_engine::Position;
+use board_engine::Vec2d;
 use crate::{pos, vec2d};
 
 const CAR_WALK_DIRECTIONS: [Vec2d; 4] = [vec2d!(1, 0), vec2d!(0, 1), vec2d!(-1, 0), vec2d!(0, -1)];
@@ -59,15 +61,15 @@ impl ChessTrait for Car {
 
     fn walk_options<'a>(
         &'a mut self,
-        board_status: &crate::board::BoardShape,
+        board_status: &Grid<i8>,
     ) -> (&'a [Option<Position>], usize) {
         self.0.reset_walk_options();
         let id = self.0.id;
         let cur_pos = self.0.pos;
         for direction in CAR_WALK_DIRECTIONS {
             let mut new_pos = cur_pos;
-            while let Some(new_pos_) = new_pos.checked_add_vec2d(direction) {
-                let other = board_status[new_pos_.x][new_pos_.y];
+            while let Some(new_pos_) = new_pos.checked_add_vec2d(direction, BOARD_WIDTH, BOARD_HEIGHT) {
+                let other = crate::chess::cell(board_status, new_pos_.x, new_pos_.y);
                 if other == 0 || !same_side(id, other) {
                     // nobody or enemy here, can walk
                     new_pos = new_pos_;

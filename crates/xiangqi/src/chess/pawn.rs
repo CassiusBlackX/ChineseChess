@@ -1,11 +1,13 @@
+use crate::board::{BOARD_HEIGHT, BOARD_WIDTH};
+use board_engine::Grid;
 use crate::chess::{
     BLACK_LEFTEST_PAWN_ID, BLACK_MIDDLE_LEFT_PAWN_ID, BLACK_MIDDLE_PAWN_ID,
     BLACK_MIDDLE_RIGHT_PAWN_ID, BLACK_RIGHTEST_PAWN_ID, Chess, ChessKind, ChessTrait,
     RED_LEFTEST_PAWN_ID, RED_MIDDLE_LEFT_PAWN_ID, RED_MIDDLE_PAWN_ID, RED_MIDDLE_RIGHT_PAWN_ID,
     RED_RIGHTEST_PAWN_ID, same_side,
 };
-use crate::position::Position;
-use crate::vec2d::Vec2d;
+use board_engine::Position;
+use board_engine::Vec2d;
 use crate::{pos, vec2d};
 
 const RED_WALK_DIRECTIONS: [Vec2d; 3] = [vec2d!(1, 0), vec2d!(0, 1), vec2d!(-1, 0)];
@@ -75,7 +77,7 @@ impl ChessTrait for Pawn {
 
     fn walk_options<'a>(
         &'a mut self,
-        board_status: &crate::board::BoardShape,
+        board_status: &Grid<i8>,
     ) -> (&'a [Option<Position>], usize) {
         self.0.reset_walk_options();
         let id = self.0.id;
@@ -95,8 +97,8 @@ impl ChessTrait for Pawn {
         };
 
         for direction in optional_directions {
-            if let Some(pos) = cur_pos.checked_add_vec2d(*direction) {
-                let other = board_status[pos.x][pos.y];
+            if let Some(pos) = cur_pos.checked_add_vec2d(*direction, BOARD_WIDTH, BOARD_HEIGHT) {
+                let other = crate::chess::cell(board_status, pos.x, pos.y);
                 if other == 0 || !same_side(id, other) {
                     // other == 0, nobody is here, can walk
                     // !same_side, an enemy is here, eat him

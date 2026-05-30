@@ -1,39 +1,12 @@
-use serde::Serialize;
+use game_view::{CoordDto, PieceDto, SnapshotDto};
+
+use board_engine::{Position, Vec2d};
 
 use crate::{
     board::{BOARD_HEIGHT, BOARD_WIDTH, Board},
     chess::{BLACK_KING_ID, RED_KING_ID},
     pos,
-    position::Position,
-    vec2d::Vec2d,
 };
-
-#[derive(Debug, Clone, Serialize)]
-pub struct MoveDto {
-    pub x: usize,
-    pub y: usize,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct PieceDto {
-    pub id: i8,
-    pub x: usize,
-    pub y: usize,
-    pub side: i8,
-    pub symbol: String,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct SnapshotDto {
-    pub turn: i8,
-    pub selected: Option<MoveDto>,
-    pub legal_moves: Vec<MoveDto>,
-    pub pieces: Vec<PieceDto>,
-    pub in_check_side: i8,
-    pub game_over: bool,
-    pub winner: i8,
-    pub message: String,
-}
 
 #[derive(Clone)]
 pub struct Game {
@@ -95,18 +68,25 @@ impl Game {
         };
 
         SnapshotDto {
+            width: BOARD_WIDTH,
+            height: BOARD_HEIGHT,
             turn: self.turn,
-            selected: self.selected.map(|p| MoveDto { x: p.x, y: p.y }),
+            selected: self.selected.map(|p| CoordDto { x: p.x, y: p.y }),
             legal_moves,
             pieces: self.collect_pieces(),
-            in_check_side: self.in_check_side,
+            in_check_side: if self.in_check_side == 0 {
+                None
+            } else {
+                Some(self.in_check_side)
+            },
             game_over: self.game_over,
             winner: self.winner,
             message: self.message.clone(),
+            last_move: None,
         }
     }
 
-    pub fn legal_moves(&mut self, x: usize, y: usize) -> Result<Vec<MoveDto>, String> {
+    pub fn legal_moves(&mut self, x: usize, y: usize) -> Result<Vec<CoordDto>, String> {
         if x >= BOARD_WIDTH || y >= BOARD_HEIGHT {
             return Err("坐标越界".to_string());
         }
@@ -201,7 +181,11 @@ impl Game {
             return self.snapshot();
         }
 
-        if from_x >= BOARD_WIDTH || from_y >= BOARD_HEIGHT || to_x >= BOARD_WIDTH || to_y >= BOARD_HEIGHT {
+        if from_x >= BOARD_WIDTH
+            || from_y >= BOARD_HEIGHT
+            || to_x >= BOARD_WIDTH
+            || to_y >= BOARD_HEIGHT
+        {
             self.message = "坐标越界".to_string();
             return self.snapshot();
         }
@@ -247,16 +231,16 @@ impl Game {
         id.signum() == self.turn
     }
 
-    fn collect_legal_moves_for(&mut self, id: i8) -> Vec<MoveDto> {
+    fn collect_legal_moves_for(&mut self, id: i8) -> Vec<CoordDto> {
         Self::collect_legal_moves_for_board(&mut self.board, id)
     }
 
-    fn collect_legal_moves_for_board(board: &mut Board, id: i8) -> Vec<MoveDto> {
+    fn collect_legal_moves_for_board(board: &mut Board, id: i8) -> Vec<CoordDto> {
         board
             .walk_options(id)
             .iter()
             .filter_map(|opt| opt.as_ref())
-            .map(|p| MoveDto { x: p.x, y: p.y })
+            .map(|p| CoordDto { x: p.x, y: p.y })
             .collect()
     }
 
@@ -297,7 +281,7 @@ impl Game {
         let min_y = red_king_pos.y.min(black_king_pos.y);
         let max_y = red_king_pos.y.max(black_king_pos.y);
         for y in (min_y + 1)..max_y {
-            if board.board_status()[x][y] != 0 {
+            if board.board_status().get(x, y).unwrap_or(0) != 0 {
                 return false;
             }
         }
@@ -314,13 +298,10 @@ impl Game {
         };
 
         let mut enemy_ids = Vec::new();
-        let board_status = *board.board_status();
-        for x in 0..BOARD_WIDTH {
-            for y in 0..BOARD_HEIGHT {
-                let id = board_status[x][y];
-                if id != 0 && id.signum() == -side {
-                    enemy_ids.push(id);
-                }
+        for (x, y) in board.board_status().iter_coords() {
+            let id = board.board_status().get(x, y).unwrap_or(0);
+            if id != 0 && id.signum() == -side {
+                enemy_ids.push(id);
             }
         }
 
@@ -340,30 +321,27 @@ impl Game {
             return false;
         }
 
-        let board_status = *self.board.board_status();
-        for x in 0..BOARD_WIDTH {
-            for y in 0..BOARD_HEIGHT {
-                let id = board_status[x][y];
-                if id == 0 || id.signum() != side {
-                    continue;
-                }
+        for (x, y) in self.board.board_status().iter_coords() {
+            let id = self.board.board_status().get(x, y).unwrap_or(0);
+            if id == 0 || id.signum() != side {
+                continue;
+            }
 
-                let from = Position { x, y };
-                let mut simulation_for_moves = self.board.clone();
-                let moves = Self::collect_legal_moves_for_board(&mut simulation_for_moves, id);
+            let from = Position { x, y };
+            let mut simulation_for_moves = self.board.clone();
+            let moves = Self::collect_legal_moves_for_board(&mut simulation_for_moves, id);
 
-                for mv in moves {
-                    let mut simulation = self.board.clone();
-                    let direction = Vec2d {
-                        x: mv.x as i8 - from.x as i8,
-                        y: mv.y as i8 - from.y as i8,
-                    };
+            for mv in moves {
+                let mut simulation = self.board.clone();
+                let direction = Vec2d {
+                    x: mv.x as i8 - from.x as i8,
+                    y: mv.y as i8 - from.y as i8,
+                };
 
-                    if simulation.walk(id, direction).is_ok()
-                        && !Self::is_side_in_check_on_board(&mut simulation, side)
-                    {
-                        return false;
-                    }
+                if simulation.walk(id, direction).is_ok()
+                    && !Self::is_side_in_check_on_board(&mut simulation, side)
+                {
+                    return false;
                 }
             }
         }
@@ -372,7 +350,11 @@ impl Game {
     }
 
     fn side_name(side: i8) -> &'static str {
-        if side > 0 { "红" } else { "黑" }
+        if side > 0 {
+            "红"
+        } else {
+            "黑"
+        }
     }
 
     fn finish_turn_after_successful_move(&mut self) {
@@ -398,28 +380,25 @@ impl Game {
 
     fn collect_pieces(&self) -> Vec<PieceDto> {
         let mut pieces = Vec::new();
-        let board_status = self.board.board_status();
-        for x in 0..BOARD_WIDTH {
-            for y in 0..BOARD_HEIGHT {
-                let id = board_status[x][y];
-                if id == 0 {
-                    continue;
-                }
-
-                let symbol = self
-                    .board
-                    .piece_name(id)
-                    .map(|ch| ch.to_string())
-                    .unwrap_or_else(|| "?".to_string());
-
-                pieces.push(PieceDto {
-                    id,
-                    x,
-                    y,
-                    side: id.signum(),
-                    symbol,
-                });
+        for (x, y) in self.board.board_status().iter_coords() {
+            let id = self.board.board_status().get(x, y).unwrap_or(0);
+            if id == 0 {
+                continue;
             }
+
+            let symbol = self
+                .board
+                .piece_name(id)
+                .map(|ch| ch.to_string())
+                .unwrap_or_else(|| "?".to_string());
+
+            pieces.push(PieceDto {
+                id,
+                x,
+                y,
+                side: id.signum(),
+                symbol,
+            });
         }
         pieces
     }

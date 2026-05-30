@@ -1,9 +1,11 @@
+use crate::board::{BOARD_HEIGHT, BOARD_WIDTH};
 use crate::chess::{
     BLACK_LEFT_ELEPHANT_ID, BLACK_RIGHT_ELEPHANT_ID, Chess, ChessKind, ChessTrait,
     RED_LEFT_ELEPHANT_ID, RED_RIGHT_ELEPHANT_ID, same_side,
 };
-use crate::position::{Position, intersection_option};
-use crate::vec2d::Vec2d;
+use board_engine::{Grid, Position};
+use board_engine::position::intersection_option;
+use board_engine::Vec2d;
 use crate::{pos, vec2d};
 
 const RED_WALK_OPTIONAL_POSITIONS: [Position; 7] = [
@@ -80,7 +82,7 @@ impl ChessTrait for Elephant {
 
     fn walk_options<'a>(
         &'a mut self,
-        board_status: &crate::board::BoardShape,
+        board_status: &Grid<i8>,
     ) -> (&'a [Option<Position>], usize) {
         self.0.reset_walk_options();
         let id = self.0.id;
@@ -95,8 +97,8 @@ impl ChessTrait for Elephant {
         let potential_obstacles_vec2ds: [Vec2d; 4] =
             [vec2d!(1, 1), vec2d!(-1, 1), vec2d!(-1, -1), vec2d!(1, -1)];
         let potential_obstacles_exists: [bool; 4] = std::array::from_fn(|i| {
-            if let Some(obstacle) = cur_pos.checked_add_vec2d(potential_obstacles_vec2ds[i])
-                && board_status[obstacle.x][obstacle.y] != 0
+            if let Some(obstacle) = cur_pos.checked_add_vec2d(potential_obstacles_vec2ds[i], BOARD_WIDTH, BOARD_HEIGHT)
+                && crate::chess::cell(board_status, obstacle.x, obstacle.y) != 0
             // valid position & other piece
             {
                 true
@@ -109,13 +111,13 @@ impl ChessTrait for Elephant {
                 if potential_obstacles_exists[i] {
                     None
                 } else {
-                    cur_pos.checked_add_vec2d(ELEPHANT_WALK_DIRECTIONS[i])
+                    cur_pos.checked_add_vec2d(ELEPHANT_WALK_DIRECTIONS[i], BOARD_WIDTH, BOARD_HEIGHT)
                 }
             });
         let walkable_positions = intersection_option(&optinal_positions, &reachable_positions);
 
         for pos in walkable_positions {
-            let other = board_status[pos.x][pos.y];
+            let other = crate::chess::cell(board_status, pos.x, pos.y);
             if other == 0 || !same_side(id, other) {
                 // other = 0, nobody is here, can walk
                 // !same_size, an enemy is here, eat him

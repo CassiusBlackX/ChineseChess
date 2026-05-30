@@ -1,9 +1,11 @@
+use crate::board::{BOARD_HEIGHT, BOARD_WIDTH};
+use board_engine::Grid;
 use crate::chess::{
     BLACK_LEFT_HORSE_ID, BLACK_RIGHT_HORSE_ID, Chess, ChessKind, ChessTrait, RED_LEFT_HORSE_ID,
     RED_RIGHT_HORSE_ID, same_side,
 };
-use crate::position::Position;
-use crate::vec2d::Vec2d;
+use board_engine::Position;
+use board_engine::Vec2d;
 use crate::{pos, vec2d};
 
 const HORSE_WALK_DIRECTIONS: [Vec2d; 8] = [
@@ -76,7 +78,7 @@ impl ChessTrait for Horse {
 
     fn walk_options<'a>(
         &'a mut self,
-        board_status: &crate::board::BoardShape,
+        board_status: &Grid<i8>,
     ) -> (&'a [Option<Position>], usize) {
         self.0.reset_walk_options();
         let id = self.0.id;
@@ -84,8 +86,8 @@ impl ChessTrait for Horse {
         let potential_obstacles_vec2ds: [Vec2d; 4] =
             [vec2d!(1, 0), vec2d!(0, 1), vec2d!(-1, 0), vec2d!(0, -1)];
         let potential_obstacles_exists: [bool; 4] = std::array::from_fn(|i| {
-            if let Some(obstacle) = cur_pos.checked_add_vec2d(potential_obstacles_vec2ds[i])
-                && board_status[obstacle.x][obstacle.y] != 0
+            if let Some(obstacle) = cur_pos.checked_add_vec2d(potential_obstacles_vec2ds[i], BOARD_WIDTH, BOARD_HEIGHT)
+                && crate::chess::cell(board_status, obstacle.x, obstacle.y) != 0
             // valid position & other piece
             {
                 true
@@ -97,8 +99,8 @@ impl ChessTrait for Horse {
             if potential_obstacles_exists[i % 4] {
                 continue;
             }
-            if let Some(pos) = cur_pos.checked_add_vec2d(direct) {
-                let other = board_status[pos.x][pos.y];
+            if let Some(pos) = cur_pos.checked_add_vec2d(direct, BOARD_WIDTH, BOARD_HEIGHT) {
+                let other = crate::chess::cell(board_status, pos.x, pos.y);
                 if other == 0 || !same_side(id, other) {
                     // other == 0, nobody is here, can walk
                     // !same_side, an enemy is here, eat him

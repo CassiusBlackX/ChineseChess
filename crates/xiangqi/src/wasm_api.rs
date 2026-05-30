@@ -1,10 +1,12 @@
 use wasm_bindgen::prelude::*;
 
-use crate::view_adapter::{GameViewAdapter, SharedGameAdapter, ViewInput, ViewOutput};
+use game_view::{GameViewAdapter, ViewInput, ViewOutput};
+
+use crate::adapter::XiangqiAdapter;
 
 #[wasm_bindgen]
 pub struct WasmGame {
-    adapter: SharedGameAdapter,
+    adapter: XiangqiAdapter,
 }
 
 #[wasm_bindgen]
@@ -12,7 +14,7 @@ impl WasmGame {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         Self {
-            adapter: SharedGameAdapter::new(),
+            adapter: XiangqiAdapter::new(),
         }
     }
 

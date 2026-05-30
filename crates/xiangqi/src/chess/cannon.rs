@@ -1,9 +1,11 @@
+use crate::board::{BOARD_HEIGHT, BOARD_WIDTH};
+use board_engine::Grid;
 use crate::chess::{
     BLACK_LEFT_CANNON_ID, BLACK_RIGHT_CANNON_ID, Chess, ChessKind, ChessTrait, RED_LEFT_CANNON_ID,
     RED_RIGHT_CANNON_ID, same_side,
 };
-use crate::position::Position;
-use crate::vec2d::Vec2d;
+use board_engine::Position;
+use board_engine::Vec2d;
 use crate::{pos, vec2d};
 
 const CANNON_WALK_DIRECTIONS: [Vec2d; 4] =
@@ -60,15 +62,15 @@ impl ChessTrait for Cannon {
 
     fn walk_options<'a>(
         &'a mut self,
-        board_status: &crate::board::BoardShape,
+        board_status: &Grid<i8>,
     ) -> (&'a [Option<Position>], usize) {
         self.0.reset_walk_options();
         let id = self.0.id;
         let cur_pos = self.0.pos;
         for direction in CANNON_WALK_DIRECTIONS {
             let mut new_pos = cur_pos;
-            while let Some(new_pos_) = new_pos.checked_add_vec2d(direction) {
-                let other = board_status[new_pos_.x][new_pos_.y];
+            while let Some(new_pos_) = new_pos.checked_add_vec2d(direction, BOARD_WIDTH, BOARD_HEIGHT) {
+                let other = crate::chess::cell(board_status, new_pos_.x, new_pos_.y);
                 if other == 0 {
                     // nobody here, can walk
                     new_pos = new_pos_;
@@ -78,8 +80,8 @@ impl ChessTrait for Cannon {
                     // somebody here, can no longer walk
                     // unless an enemy is furthur
                     let mut forward_pos = new_pos_;
-                    while let Some(forward_pos_) = forward_pos.checked_add_vec2d(direction) {
-                        let other = board_status[forward_pos_.x][forward_pos_.y];
+                    while let Some(forward_pos_) = forward_pos.checked_add_vec2d(direction, BOARD_WIDTH, BOARD_HEIGHT) {
+                        let other = crate::chess::cell(board_status, forward_pos_.x, forward_pos_.y);
                         if other == 0 {
                             forward_pos = forward_pos_;
                             continue;
