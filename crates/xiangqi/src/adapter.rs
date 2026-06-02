@@ -37,6 +37,9 @@ impl GameViewAdapter for XiangqiAdapter {
                 Ok(moves) => ViewOutput::Moves(moves),
                 Err(err) => ViewOutput::Error(err),
             },
+            ViewInput::SetPlayMode(_)
+            | ViewInput::SetAiDifficulty(_)
+            | ViewInput::SetHumanSide(_) => ViewOutput::Snapshot(self.game.snapshot()),
         }
     }
 

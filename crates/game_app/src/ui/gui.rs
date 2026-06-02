@@ -1,19 +1,23 @@
 use std::collections::HashMap;
 
 use eframe::egui::{self, Color32, FontData, FontDefinitions, FontFamily, RichText};
-use game_view::{GameViewAdapter, SnapshotDto, ViewInput, ViewOutput};
+use game_view::{
+    AiDifficulty, GameViewAdapter, PlayMode, SnapshotDto, ViewInput, ViewOutput,
+};
 
-use crate::ui::common::{format_status, piece_color_rgb};
+use crate::ui::common::{format_status, human_input_enabled, piece_color_rgb};
 
 struct DesktopGameApp {
     adapter: Box<dyn GameViewAdapter>,
     snapshot: SnapshotDto,
     game_title: String,
+    supports_session: bool,
 }
 
 impl DesktopGameApp {
     fn new(mut adapter: Box<dyn GameViewAdapter>) -> Self {
         let game_title = adapter.game_title().to_string();
+        let supports_session = adapter.supports_session_config();
         let snapshot = match adapter.handle(ViewInput::Snapshot) {
             ViewOutput::Snapshot(s) => s,
             ViewOutput::Moves(_) | ViewOutput::Error(_) => {
@@ -24,6 +28,78 @@ impl DesktopGameApp {
             adapter,
             snapshot,
             game_title,
+            supports_session,
+        }
+    }
+
+    fn apply_session_input(&mut self, input: ViewInput) {
+        if let ViewOutput::Snapshot(snapshot) = self.adapter.handle(input) {
+            self.snapshot = snapshot;
+        }
+    }
+
+    fn draw_session_controls(&mut self, ui: &mut egui::Ui) {
+        if !self.supports_session {
+            return;
+        }
+
+        let session = self.snapshot.session.clone();
+        let Some(session) = session else {
+            return;
+        };
+
+        let mut pending: Option<ViewInput> = None;
+
+        ui.separator();
+        ui.label("模式:");
+        let mut play_mode = session.play_mode;
+        egui::ComboBox::from_id_salt("play_mode")
+            .selected_text(match play_mode {
+                PlayMode::LocalPvp => "人人对战",
+                PlayMode::HumanVsAi => "人机对战",
+            })
+            .show_ui(ui, |ui| {
+                ui.selectable_value(&mut play_mode, PlayMode::LocalPvp, "人人对战");
+                ui.selectable_value(&mut play_mode, PlayMode::HumanVsAi, "人机对战");
+            });
+        if play_mode != session.play_mode {
+            pending = Some(ViewInput::SetPlayMode(play_mode));
+        }
+
+        ui.label("难度:");
+        let mut difficulty = session.ai_difficulty;
+        let difficulty_enabled = session.play_mode == PlayMode::HumanVsAi;
+        ui.add_enabled_ui(difficulty_enabled, |ui| {
+            egui::ComboBox::from_id_salt("ai_difficulty")
+                .selected_text(match difficulty {
+                    AiDifficulty::Easy => "简单",
+                    AiDifficulty::Medium => "中等",
+                    AiDifficulty::Hard => "困难",
+                })
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut difficulty, AiDifficulty::Easy, "简单");
+                    ui.selectable_value(&mut difficulty, AiDifficulty::Medium, "中等");
+                    ui.selectable_value(&mut difficulty, AiDifficulty::Hard, "困难");
+                });
+        });
+        if difficulty_enabled && difficulty != session.ai_difficulty {
+            pending = Some(ViewInput::SetAiDifficulty(difficulty));
+        }
+
+        ui.label("执棋:");
+        let mut human_side = session.human_side;
+        egui::ComboBox::from_id_salt("human_side")
+            .selected_text(if human_side > 0 { "执黑" } else { "执白" })
+            .show_ui(ui, |ui| {
+                ui.selectable_value(&mut human_side, 1, "执黑");
+                ui.selectable_value(&mut human_side, -1, "执白");
+            });
+        if human_side != session.human_side {
+            pending = Some(ViewInput::SetHumanSide(human_side));
+        }
+
+        if let Some(input) = pending {
+            self.apply_session_input(input);
         }
     }
 
@@ -73,6 +149,7 @@ impl eframe::App for DesktopGameApp {
                 {
                     self.snapshot = snapshot;
                 }
+                self.draw_session_controls(ui);
             });
             ui.label(format_status(&self.snapshot, &title));
         });
@@ -97,6 +174,7 @@ impl eframe::App for DesktopGameApp {
             let board_w = self.adapter.board_width();
             let board_h = self.adapter.board_height();
             let cell_size = if board_w > 10 { 36.0 } else { 52.0 };
+            let board_enabled = human_input_enabled(&self.snapshot) && !self.snapshot.game_over;
 
             ui.vertical_centered(|ui| {
                 egui::Grid::new("board_grid")
@@ -150,7 +228,7 @@ impl eframe::App for DesktopGameApp {
                                     ));
                                 }
 
-                                let response = ui.add_enabled(!self.snapshot.game_over, button);
+                                let response = ui.add_enabled(board_enabled, button);
                                 if response.clicked()
                                     && let ViewOutput::Snapshot(snapshot) =
                                         self.adapter.handle(ViewInput::Click { x, y })

@@ -83,6 +83,7 @@ impl Game {
             winner: self.winner,
             message: self.message.clone(),
             last_move: None,
+            session: None,
         }
     }
 

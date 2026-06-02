@@ -2,4 +2,6 @@ pub mod adapter;
 pub mod dto;
 
 pub use adapter::{GameViewAdapter, ViewInput, ViewOutput};
-pub use dto::{CoordDto, MoveDto, PieceDto, SnapshotDto};
+pub use dto::{
+    AiDifficulty, CoordDto, MoveDto, PieceDto, PlayMode, SessionDto, SnapshotDto,
+};

@@ -50,6 +50,26 @@ h1 {
 
 .toolbar {
   margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.toolbar label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+
+.toolbar select {
+  border: 1px solid #64748b;
+  background: #e2e8f0;
+  color: #1e293b;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-family: inherit;
 }
 
 button {

@@ -26,7 +26,23 @@ impl GameViewAdapter for GomokuAdapter {
                 self.game.reset();
                 ViewOutput::Snapshot(self.game.snapshot())
             }
-            ViewInput::Click { x, y } => ViewOutput::Snapshot(self.game.click(x, y)),
+            ViewInput::Click { x, y } => ViewOutput::Snapshot(self.game.human_click(x, y)),
+            ViewInput::SetPlayMode(mode) => {
+                self.game.set_play_mode(mode);
+                ViewOutput::Snapshot(self.game.snapshot())
+            }
+            ViewInput::SetAiDifficulty(difficulty) => {
+                self.game.set_ai_difficulty(difficulty);
+                ViewOutput::Snapshot(self.game.snapshot())
+            }
+            ViewInput::SetHumanSide(side) => {
+                if side == 1 || side == -1 {
+                    self.game.set_human_side(side);
+                    ViewOutput::Snapshot(self.game.snapshot())
+                } else {
+                    ViewOutput::Error("执棋方只能是黑(1)或白(-1)".to_string())
+                }
+            }
             ViewInput::TryMove { .. } | ViewInput::LegalMoves { .. } => {
                 ViewOutput::Snapshot(self.game.snapshot())
             }
@@ -47,5 +63,9 @@ impl GameViewAdapter for GomokuAdapter {
 
     fn game_title(&self) -> &str {
         "五子棋"
+    }
+
+    fn supports_session_config(&self) -> bool {
+        true
     }
 }

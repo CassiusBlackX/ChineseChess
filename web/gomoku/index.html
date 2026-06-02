@@ -12,6 +12,28 @@
         <h1>五子棋 · Rust + WASM</h1>
         <p id="status">加载中...</p>
         <div class="toolbar">
+          <label>
+            模式
+            <select id="play-mode">
+              <option value="pvp">人人对战</option>
+              <option value="pve">人机对战</option>
+            </select>
+          </label>
+          <label>
+            难度
+            <select id="ai-difficulty">
+              <option value="easy">简单</option>
+              <option value="medium" selected>中等</option>
+              <option value="hard">困难</option>
+            </select>
+          </label>
+          <label>
+            执棋
+            <select id="human-side">
+              <option value="black" selected>执黑</option>
+              <option value="white">执白</option>
+            </select>
+          </label>
           <button id="reset">重开一局</button>
         </div>
       </section>

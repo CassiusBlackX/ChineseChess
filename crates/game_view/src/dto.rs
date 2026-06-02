@@ -1,6 +1,27 @@
 use board_engine::Player;
 use serde::Serialize;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum PlayMode {
+    LocalPvp,
+    HumanVsAi,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum AiDifficulty {
+    Easy,
+    Medium,
+    Hard,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SessionDto {
+    pub play_mode: PlayMode,
+    pub ai_difficulty: AiDifficulty,
+    pub human_side: Player,
+    pub human_input_enabled: bool,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct CoordDto {
     pub x: usize,
@@ -31,6 +52,8 @@ pub struct SnapshotDto {
     pub in_check_side: Option<Player>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_move: Option<CoordDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session: Option<SessionDto>,
 }
 
 // Backward-compatible alias used by existing code paths.

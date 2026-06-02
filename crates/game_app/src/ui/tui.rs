@@ -12,7 +12,9 @@ use crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use game_view::{GameViewAdapter, SnapshotDto, ViewInput, ViewOutput};
+use game_view::{
+    AiDifficulty, GameViewAdapter, PlayMode, SnapshotDto, ViewInput, ViewOutput,
+};
 use ratatui::{
     Frame, Terminal,
     backend::CrosstermBackend,
@@ -21,7 +23,7 @@ use ratatui::{
     widgets::{Block, Borders, Cell, Paragraph, Row, Table},
 };
 
-use crate::ui::common::format_status;
+use crate::ui::common::{format_session, format_status, human_input_enabled};
 
 const CELL_W: u16 = 4;
 
@@ -29,6 +31,7 @@ struct TuiApp {
     adapter: Box<dyn GameViewAdapter>,
     snapshot: SnapshotDto,
     game_title: String,
+    supports_session: bool,
     cursor_x: usize,
     cursor_y: usize,
     board_inner: Option<Rect>,
@@ -38,6 +41,7 @@ struct TuiApp {
 impl TuiApp {
     fn new(mut adapter: Box<dyn GameViewAdapter>) -> Self {
         let game_title = adapter.game_title().to_string();
+        let supports_session = adapter.supports_session_config();
         let snapshot = match adapter.handle(ViewInput::Snapshot) {
             ViewOutput::Snapshot(s) => s,
             ViewOutput::Moves(_) | ViewOutput::Error(_) => panic!("snapshot fetch failed"),
@@ -49,6 +53,7 @@ impl TuiApp {
             adapter,
             snapshot,
             game_title,
+            supports_session,
             cursor_x,
             cursor_y,
             board_inner: None,
@@ -64,7 +69,20 @@ impl TuiApp {
         self.adapter.board_height()
     }
 
+    fn apply_session_input(&mut self, input: ViewInput) {
+        if let ViewOutput::Snapshot(s) = self.adapter.handle(input) {
+            self.snapshot = s;
+        }
+    }
+
+    fn can_place(&self) -> bool {
+        human_input_enabled(&self.snapshot) && !self.snapshot.game_over
+    }
+
     fn click_at(&mut self, x: usize, y: usize) {
+        if !self.can_place() {
+            return;
+        }
         if let ViewOutput::Snapshot(s) = self.adapter.handle(ViewInput::Click { x, y }) {
             self.snapshot = s;
         }
@@ -82,6 +100,22 @@ impl TuiApp {
         match code {
             KeyCode::Char('q') | KeyCode::Esc => self.should_quit = true,
             KeyCode::Char('r') => self.reset(),
+            KeyCode::Char('m') if self.supports_session => self.cycle_play_mode(),
+            KeyCode::Char('1') if self.supports_session => {
+                self.apply_session_input(ViewInput::SetAiDifficulty(AiDifficulty::Easy));
+            }
+            KeyCode::Char('2') if self.supports_session => {
+                self.apply_session_input(ViewInput::SetAiDifficulty(AiDifficulty::Medium));
+            }
+            KeyCode::Char('3') if self.supports_session => {
+                self.apply_session_input(ViewInput::SetAiDifficulty(AiDifficulty::Hard));
+            }
+            KeyCode::Char('b') if self.supports_session => {
+                self.apply_session_input(ViewInput::SetHumanSide(1));
+            }
+            KeyCode::Char('w') if self.supports_session => {
+                self.apply_session_input(ViewInput::SetHumanSide(-1));
+            }
             KeyCode::Left => {
                 self.cursor_x = self.cursor_x.saturating_sub(1);
             }
@@ -95,12 +129,20 @@ impl TuiApp {
                 self.cursor_y = self.cursor_y.saturating_sub(1);
             }
             KeyCode::Enter | KeyCode::Char(' ') => {
-                if !self.snapshot.game_over {
+                if self.can_place() {
                     self.click_at(self.cursor_x, self.cursor_y);
                 }
             }
             _ => {}
         }
+    }
+
+    fn cycle_play_mode(&mut self) {
+        let next = match self.snapshot.session.as_ref().map(|s| s.play_mode) {
+            Some(PlayMode::LocalPvp) => PlayMode::HumanVsAi,
+            _ => PlayMode::LocalPvp,
+        };
+        self.apply_session_input(ViewInput::SetPlayMode(next));
     }
 
     fn terminal_to_board(&self, col: u16, row: u16) -> Option<(usize, usize)> {
@@ -130,7 +172,7 @@ impl TuiApp {
         if let Some((x, y)) = self.terminal_to_board(col, row) {
             self.cursor_x = x;
             self.cursor_y = y;
-            if !self.snapshot.game_over {
+            if self.can_place() {
                 self.click_at(x, y);
             }
         }
@@ -140,7 +182,7 @@ impl TuiApp {
         let title = self.game_title.clone();
         let layout = Layout::vertical([
             Constraint::Length(3),
-            Constraint::Length(2),
+            Constraint::Length(if self.supports_session { 3 } else { 2 }),
             Constraint::Min(12),
         ])
         .split(f.area());
@@ -152,10 +194,21 @@ impl TuiApp {
         );
         f.render_widget(status_widget, layout[0]);
 
-        let help = Paragraph::new(
-            "方向键移动光标 | Enter/空格点击 | 鼠标左键点击 | r 重开 | q/Esc 退出",
-        )
-        .block(Block::default().borders(Borders::ALL).title("操作"));
+        let help_text = if self.supports_session {
+            let session_hint = self
+                .snapshot
+                .session
+                .as_ref()
+                .map(format_session)
+                .unwrap_or_default();
+            format!(
+                "{session_hint}\n方向键移动 | Enter/空格/鼠标落子 | m 切换模式 | 1/2/3 难度 | b/w 执棋 | r 重开 | q 退出"
+            )
+        } else {
+            "方向键移动光标 | Enter/空格点击 | 鼠标左键点击 | r 重开 | q/Esc 退出".to_string()
+        };
+        let help = Paragraph::new(help_text)
+            .block(Block::default().borders(Borders::ALL).title("操作"));
         f.render_widget(help, layout[1]);
 
         let board_block = Block::default().borders(Borders::ALL).title("棋盘");

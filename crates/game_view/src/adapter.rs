@@ -1,6 +1,6 @@
 use board_engine::Player;
 
-use crate::dto::{CoordDto, SnapshotDto};
+use crate::dto::{AiDifficulty, CoordDto, PlayMode, SnapshotDto};
 
 pub enum ViewInput {
     Snapshot,
@@ -13,6 +13,9 @@ pub enum ViewInput {
         to_y: usize,
     },
     LegalMoves { x: usize, y: usize },
+    SetPlayMode(PlayMode),
+    SetAiDifficulty(AiDifficulty),
+    SetHumanSide(Player),
 }
 
 pub enum ViewOutput {
@@ -27,4 +30,8 @@ pub trait GameViewAdapter {
     fn board_height(&self) -> usize;
     fn current_turn(&self) -> Player;
     fn game_title(&self) -> &str;
+
+    fn supports_session_config(&self) -> bool {
+        false
+    }
 }

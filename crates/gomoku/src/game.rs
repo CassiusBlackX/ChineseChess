@@ -1,8 +1,9 @@
-use game_view::{CoordDto, PieceDto, SnapshotDto};
+use game_view::{AiDifficulty, CoordDto, PieceDto, PlayMode, SessionDto, SnapshotDto};
 
 use board_engine::{Player, Position};
 
 use crate::{
+    ai,
     board::{Board, BOARD_HEIGHT, BOARD_WIDTH, Cell},
     pos,
     win::check_winner_on_board,
@@ -16,6 +17,9 @@ pub struct Game {
     winner: Player,
     message: String,
     last_move: Option<Position>,
+    play_mode: PlayMode,
+    ai_difficulty: AiDifficulty,
+    human_side: Player,
 }
 
 impl Default for Game {
@@ -33,11 +37,40 @@ impl Game {
             winner: 0,
             message: "黑方先手".to_string(),
             last_move: None,
+            play_mode: PlayMode::LocalPvp,
+            ai_difficulty: AiDifficulty::Medium,
+            human_side: 1,
         }
     }
 
     pub fn reset(&mut self) {
-        *self = Self::new();
+        self.board = Board::new();
+        self.turn = 1;
+        self.game_over = false;
+        self.winner = 0;
+        self.message = "黑方先手".to_string();
+        self.last_move = None;
+
+        if self.needs_ai_move() {
+            self.ai_move();
+        }
+    }
+
+    pub fn set_play_mode(&mut self, play_mode: PlayMode) {
+        self.play_mode = play_mode;
+        self.reset();
+    }
+
+    pub fn set_ai_difficulty(&mut self, ai_difficulty: AiDifficulty) {
+        self.ai_difficulty = ai_difficulty;
+        self.reset();
+    }
+
+    pub fn set_human_side(&mut self, human_side: Player) {
+        if human_side == 1 || human_side == -1 {
+            self.human_side = human_side;
+            self.reset();
+        }
     }
 
     pub fn board_width(&self) -> usize {
@@ -52,8 +85,32 @@ impl Game {
         self.turn
     }
 
+    pub fn play_mode(&self) -> PlayMode {
+        self.play_mode
+    }
+
+    pub fn ai_difficulty(&self) -> AiDifficulty {
+        self.ai_difficulty
+    }
+
+    pub fn human_side(&self) -> Player {
+        self.human_side
+    }
+
+    fn human_input_enabled(&self) -> bool {
+        !self.game_over
+            && (self.play_mode == PlayMode::LocalPvp || self.turn == self.human_side)
+    }
+
+    fn needs_ai_move(&self) -> bool {
+        self.play_mode == PlayMode::HumanVsAi
+            && !self.game_over
+            && self.turn != self.human_side
+    }
+
     pub fn snapshot(&self) -> SnapshotDto {
-        let legal_moves = if self.game_over {
+        let human_input_enabled = self.human_input_enabled();
+        let legal_moves = if self.game_over || !human_input_enabled {
             Vec::new()
         } else {
             self.board
@@ -76,6 +133,12 @@ impl Game {
             winner: self.winner,
             message: self.message.clone(),
             last_move: self.last_move.map(|p| CoordDto { x: p.x, y: p.y }),
+            session: Some(SessionDto {
+                play_mode: self.play_mode,
+                ai_difficulty: self.ai_difficulty,
+                human_side: self.human_side,
+                human_input_enabled,
+            }),
         }
     }
 
@@ -90,12 +153,45 @@ impl Game {
             return self.snapshot();
         }
 
+        if self.play_mode == PlayMode::HumanVsAi && self.turn != self.human_side {
+            self.message = "轮到 AI 落子".to_string();
+            return self.snapshot();
+        }
+
         if !self.board.is_empty(x, y) {
             self.message = "该位置已有棋子".to_string();
             return self.snapshot();
         }
 
-        self.board.place(x, y, self.turn);
+        self.place_at(x, y, self.turn);
+        self.snapshot()
+    }
+
+    pub fn human_click(&mut self, x: usize, y: usize) -> SnapshotDto {
+        let before_over = self.game_over;
+        let snap = self.click(x, y);
+        if !before_over && !self.game_over && self.needs_ai_move() {
+            self.ai_move();
+            return self.snapshot();
+        }
+        snap
+    }
+
+    pub fn ai_move(&mut self) {
+        if !self.needs_ai_move() {
+            return;
+        }
+
+        let Some(pos) = ai::choose_move(&self.board, self.turn, self.ai_difficulty) else {
+            self.message = "AI 无法落子".to_string();
+            return;
+        };
+
+        self.place_at(pos.x, pos.y, self.turn);
+    }
+
+    fn place_at(&mut self, x: usize, y: usize, side: Player) {
+        self.board.place(x, y, side);
         let placed = pos!(x, y);
         self.last_move = Some(placed);
 
@@ -111,16 +207,8 @@ impl Game {
             self.turn = -self.turn;
             self.message = format!("{}方落子", side_name(-self.turn));
         }
-
-        self.snapshot()
     }
-}
 
-fn side_name(side: Player) -> &'static str {
-    if side > 0 { "黑" } else { "白" }
-}
-
-impl Game {
     fn collect_pieces(&self) -> Vec<PieceDto> {
         let mut pieces = Vec::new();
         for (x, y) in self.board.grid().iter_coords() {
@@ -140,6 +228,10 @@ impl Game {
         }
         pieces
     }
+}
+
+fn side_name(side: Player) -> &'static str {
+    if side > 0 { "黑" } else { "白" }
 }
 
 #[cfg(test)]
@@ -177,5 +269,35 @@ mod tests {
         let snap = game.click(7, 11);
         assert!(snap.game_over);
         assert_eq!(snap.winner, 1);
+    }
+
+    #[test]
+    fn pve_human_black_ai_follows() {
+        let mut game = Game::new();
+        game.set_play_mode(PlayMode::HumanVsAi);
+        game.set_human_side(1);
+        let snap = game.human_click(7, 7);
+        assert_eq!(snap.pieces.len(), 2);
+        assert_eq!(snap.turn, 1);
+    }
+
+    #[test]
+    fn pve_human_white_ai_starts() {
+        let mut game = Game::new();
+        game.set_play_mode(PlayMode::HumanVsAi);
+        game.set_human_side(-1);
+        let snap = game.snapshot();
+        assert_eq!(snap.pieces.len(), 1);
+        assert_eq!(snap.turn, -1);
+        assert!(snap.session.unwrap().human_input_enabled);
+    }
+
+    #[test]
+    fn rejects_click_on_ai_turn() {
+        let mut game = Game::new();
+        game.set_play_mode(PlayMode::HumanVsAi);
+        game.click(7, 7);
+        let snap = game.click(8, 7);
+        assert_eq!(snap.message, "轮到 AI 落子");
     }
 }
