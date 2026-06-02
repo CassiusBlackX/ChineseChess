@@ -1,11 +1,15 @@
-use game_view::{CoordDto, PieceDto, SnapshotDto};
+use game_view::{
+    AiDifficulty, CoordDto, PieceDto, PlayMode, SessionDto, SnapshotDto,
+};
 
-use board_engine::{Position, Vec2d};
+use board_engine::{Player, Position, Vec2d};
 
 use crate::{
+    ai,
     board::{BOARD_HEIGHT, BOARD_WIDTH, Board},
-    chess::{BLACK_KING_ID, RED_KING_ID},
+    moves::{self, is_checkmate_on_board, Move},
     pos,
+    rules::{self, is_side_in_check},
 };
 
 #[derive(Clone)]
@@ -17,6 +21,9 @@ pub struct Game {
     game_over: bool,
     winner: i8,
     message: String,
+    play_mode: PlayMode,
+    ai_difficulty: AiDifficulty,
+    human_side: Player,
 }
 
 impl Default for Game {
@@ -35,11 +42,41 @@ impl Game {
             game_over: false,
             winner: 0,
             message: "红方先手".to_string(),
+            play_mode: PlayMode::LocalPvp,
+            ai_difficulty: AiDifficulty::Medium,
+            human_side: 1,
         }
     }
 
     pub fn reset(&mut self) {
-        *self = Self::new();
+        self.board = Board::new();
+        self.selected = None;
+        self.turn = 1;
+        self.in_check_side = 0;
+        self.game_over = false;
+        self.winner = 0;
+        self.message = "红方先手".to_string();
+
+        if self.needs_ai_move() {
+            self.ai_move();
+        }
+    }
+
+    pub fn set_play_mode(&mut self, play_mode: PlayMode) {
+        self.play_mode = play_mode;
+        self.reset();
+    }
+
+    pub fn set_ai_difficulty(&mut self, ai_difficulty: AiDifficulty) {
+        self.ai_difficulty = ai_difficulty;
+        self.reset();
+    }
+
+    pub fn set_human_side(&mut self, human_side: Player) {
+        if human_side == 1 || human_side == -1 {
+            self.human_side = human_side;
+            self.reset();
+        }
     }
 
     pub fn board_width(&self) -> usize {
@@ -54,17 +91,33 @@ impl Game {
         self.turn
     }
 
+    fn human_input_enabled(&self) -> bool {
+        !self.game_over
+            && (self.play_mode == PlayMode::LocalPvp || self.turn == self.human_side)
+    }
+
+    fn needs_ai_move(&self) -> bool {
+        self.play_mode == PlayMode::HumanVsAi
+            && !self.game_over
+            && self.turn != self.human_side
+    }
+
     pub fn snapshot(&mut self) -> SnapshotDto {
-        let legal_moves = match self.selected {
-            Some(selected) => {
-                let id = self.board.id_at(selected);
-                if id != 0 && self.same_side_with_turn(id) {
-                    self.collect_legal_moves_for(id)
-                } else {
-                    Vec::new()
+        let human_input_enabled = self.human_input_enabled();
+        let legal_moves = if self.game_over || !human_input_enabled {
+            Vec::new()
+        } else {
+            match self.selected {
+                Some(selected) => {
+                    let id = self.board.id_at(selected);
+                    if id != 0 && self.same_side_with_turn(id) {
+                        self.collect_legal_moves_for(id)
+                    } else {
+                        Vec::new()
+                    }
                 }
+                None => Vec::new(),
             }
-            None => Vec::new(),
         };
 
         SnapshotDto {
@@ -83,7 +136,12 @@ impl Game {
             winner: self.winner,
             message: self.message.clone(),
             last_move: None,
-            session: None,
+            session: Some(SessionDto {
+                play_mode: self.play_mode,
+                ai_difficulty: self.ai_difficulty,
+                human_side: self.human_side,
+                human_input_enabled,
+            }),
         }
     }
 
@@ -113,6 +171,11 @@ impl Game {
             return self.snapshot();
         }
 
+        if self.play_mode == PlayMode::HumanVsAi && self.turn != self.human_side {
+            self.message = "轮到 AI 落子".to_string();
+            return self.snapshot();
+        }
+
         let pos = pos!(x, y);
         let id = self.board.id_at(pos);
 
@@ -130,7 +193,7 @@ impl Game {
                 return self.snapshot();
             }
 
-            if !self.is_move_safe(selected_id, selected, pos) {
+            if !rules::is_move_safe(&self.board, selected_id, selected, pos) {
                 self.message = "该走法会导致己方被将军".to_string();
                 return self.snapshot();
             }
@@ -159,6 +222,11 @@ impl Game {
             return self.snapshot();
         }
 
+        if self.play_mode == PlayMode::HumanVsAi && id.signum() != self.human_side {
+            self.message = "请选择己方棋子".to_string();
+            return self.snapshot();
+        }
+
         if !self.same_side_with_turn(id) {
             self.message = "当前不是该方回合".to_string();
             return self.snapshot();
@@ -167,6 +235,41 @@ impl Game {
         self.selected = Some(pos);
         self.message = "已选择棋子".to_string();
         self.snapshot()
+    }
+
+    pub fn human_click(&mut self, x: usize, y: usize) -> SnapshotDto {
+        let turn_before = self.turn;
+        let snap = self.click(x, y);
+        if !self.game_over
+            && self.play_mode == PlayMode::HumanVsAi
+            && turn_before == self.human_side
+            && self.turn != turn_before
+        {
+            self.ai_move();
+            return self.snapshot();
+        }
+        snap
+    }
+
+    pub fn ai_move(&mut self) {
+        if !self.needs_ai_move() {
+            return;
+        }
+
+        let Some(mv) = ai::choose_move(&mut self.board, self.turn, self.ai_difficulty) else {
+            self.message = "AI 无法落子".to_string();
+            return;
+        };
+
+        self.apply_move(mv);
+    }
+
+    fn apply_move(&mut self, mv: Move) {
+        if !moves::apply_move(&mut self.board, mv) {
+            self.message = "AI 走法无效".to_string();
+            return;
+        }
+        self.finish_turn_after_successful_move();
     }
 
     pub fn try_move(
@@ -204,7 +307,7 @@ impl Game {
         }
 
         let to = pos!(to_x, to_y);
-        if !self.is_move_safe(from_id, from, to) {
+        if !rules::is_move_safe(&self.board, from_id, from, to) {
             self.message = "该走法会导致己方被将军".to_string();
             return self.snapshot();
         }
@@ -233,121 +336,22 @@ impl Game {
     }
 
     fn collect_legal_moves_for(&mut self, id: i8) -> Vec<CoordDto> {
-        Self::collect_legal_moves_for_board(&mut self.board, id)
-    }
-
-    fn collect_legal_moves_for_board(board: &mut Board, id: i8) -> Vec<CoordDto> {
-        board
-            .walk_options(id)
-            .iter()
-            .filter_map(|opt| opt.as_ref())
+        rules::pseudo_moves_for_piece(&mut self.board, id)
+            .into_iter()
+            .filter(|to| {
+                let from = self
+                    .board
+                    .get_piece(id)
+                    .map(|piece| piece.get_pos())
+                    .unwrap_or(Position { x: 0, y: 0 });
+                rules::is_move_safe(&self.board, id, from, *to)
+            })
             .map(|p| CoordDto { x: p.x, y: p.y })
             .collect()
     }
 
-    fn is_move_safe(&self, id: i8, from: Position, to: Position) -> bool {
-        let mut simulated = self.board.clone();
-        let direction = Vec2d {
-            x: to.x as i8 - from.x as i8,
-            y: to.y as i8 - from.y as i8,
-        };
-        if simulated.walk(id, direction).is_err() {
-            return false;
-        }
-        !Self::is_side_in_check_on_board(&mut simulated, id.signum())
-    }
-
-    fn find_king_pos_on_board(board: &Board, side: i8) -> Option<Position> {
-        let king_id = if side > 0 { RED_KING_ID } else { BLACK_KING_ID };
-        let king = board.get_piece(king_id)?;
-        if !king.is_alive() {
-            return None;
-        }
-        Some(king.get_pos())
-    }
-
-    fn kings_face_each_other_on_board(board: &Board) -> bool {
-        let Some(red_king_pos) = Self::find_king_pos_on_board(board, 1) else {
-            return false;
-        };
-        let Some(black_king_pos) = Self::find_king_pos_on_board(board, -1) else {
-            return false;
-        };
-
-        if red_king_pos.x != black_king_pos.x {
-            return false;
-        }
-
-        let x = red_king_pos.x;
-        let min_y = red_king_pos.y.min(black_king_pos.y);
-        let max_y = red_king_pos.y.max(black_king_pos.y);
-        for y in (min_y + 1)..max_y {
-            if board.board_status().get(x, y).unwrap_or(0) != 0 {
-                return false;
-            }
-        }
-        true
-    }
-
-    fn is_side_in_check_on_board(board: &mut Board, side: i8) -> bool {
-        if Self::kings_face_each_other_on_board(board) {
-            return true;
-        }
-
-        let Some(king_pos) = Self::find_king_pos_on_board(board, side) else {
-            return true;
-        };
-
-        let mut enemy_ids = Vec::new();
-        for (x, y) in board.board_status().iter_coords() {
-            let id = board.board_status().get(x, y).unwrap_or(0);
-            if id != 0 && id.signum() == -side {
-                enemy_ids.push(id);
-            }
-        }
-
-        for enemy_id in enemy_ids {
-            let moves = Self::collect_legal_moves_for_board(board, enemy_id);
-            if moves.iter().any(|m| m.x == king_pos.x && m.y == king_pos.y) {
-                return true;
-            }
-        }
-
-        false
-    }
-
     fn is_checkmate_for_side(&self, side: i8) -> bool {
-        let mut probe = self.board.clone();
-        if !Self::is_side_in_check_on_board(&mut probe, side) {
-            return false;
-        }
-
-        for (x, y) in self.board.board_status().iter_coords() {
-            let id = self.board.board_status().get(x, y).unwrap_or(0);
-            if id == 0 || id.signum() != side {
-                continue;
-            }
-
-            let from = Position { x, y };
-            let mut simulation_for_moves = self.board.clone();
-            let moves = Self::collect_legal_moves_for_board(&mut simulation_for_moves, id);
-
-            for mv in moves {
-                let mut simulation = self.board.clone();
-                let direction = Vec2d {
-                    x: mv.x as i8 - from.x as i8,
-                    y: mv.y as i8 - from.y as i8,
-                };
-
-                if simulation.walk(id, direction).is_ok()
-                    && !Self::is_side_in_check_on_board(&mut simulation, side)
-                {
-                    return false;
-                }
-            }
-        }
-
-        true
+        is_checkmate_on_board(&self.board, side)
     }
 
     fn side_name(side: i8) -> &'static str {
@@ -363,7 +367,7 @@ impl Game {
         self.turn = -self.turn;
 
         let mut current = self.board.clone();
-        if Self::is_side_in_check_on_board(&mut current, self.turn) {
+        if is_side_in_check(&mut current, self.turn) {
             self.in_check_side = self.turn;
             if self.is_checkmate_for_side(self.turn) {
                 self.game_over = true;
@@ -416,6 +420,9 @@ impl Game {
             game_over: false,
             winner: 0,
             message: String::new(),
+            play_mode: PlayMode::LocalPvp,
+            ai_difficulty: AiDifficulty::Medium,
+            human_side: 1,
         }
     }
 }
@@ -426,8 +433,8 @@ mod tests {
     use crate::{
         board::generate_board,
         chess::{
-            BLACK_KING_ID, BLACK_LEFT_ELEPHANT_ID, BLACK_RIGHT_ELEPHANT_ID, RED_KING_ID,
-            RED_LEFT_CAR_ID, RED_RIGHT_CAR_ID,
+            BLACK_KING_ID, BLACK_LEFT_ELEPHANT_ID, BLACK_RIGHT_ELEPHANT_ID,
+            RED_KING_ID, RED_LEFT_CAR_ID, RED_RIGHT_CAR_ID,
         },
         pos,
     };
@@ -442,7 +449,7 @@ mod tests {
         let game = Game::from_board_for_test(Board::from_board_status(board_status), -1);
         let mut probe = game.board.clone();
 
-        assert!(Game::is_side_in_check_on_board(&mut probe, -1));
+        assert!(is_side_in_check(&mut probe, -1));
         assert!(!game.is_checkmate_for_side(-1));
     }
 
@@ -480,5 +487,25 @@ mod tests {
         let blocked = game.click(4, 9);
         assert!(blocked.game_over);
         assert_eq!(blocked.message, "对局已结束，请重开一局");
+    }
+
+    #[test]
+    fn pve_human_red_ai_follows() {
+        let mut game = Game::new();
+        game.set_play_mode(PlayMode::HumanVsAi);
+        game.click(0, 0);
+        let snap = game.human_click(0, 1);
+        assert!(snap.turn == 1);
+        assert!(snap.session.unwrap().human_input_enabled);
+    }
+
+    #[test]
+    fn pve_human_black_ai_starts() {
+        let mut game = Game::new();
+        game.set_play_mode(PlayMode::HumanVsAi);
+        game.set_human_side(-1);
+        let snap = game.snapshot();
+        assert_eq!(snap.turn, -1);
+        assert!(snap.session.unwrap().human_input_enabled);
     }
 }

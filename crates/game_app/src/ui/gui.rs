@@ -5,7 +5,7 @@ use game_view::{
     AiDifficulty, GameViewAdapter, PlayMode, SnapshotDto, ViewInput, ViewOutput,
 };
 
-use crate::ui::common::{format_status, human_input_enabled, piece_color_rgb};
+use crate::ui::common::{format_status, human_input_enabled, human_side_labels, piece_color_rgb};
 
 struct DesktopGameApp {
     adapter: Box<dyn GameViewAdapter>,
@@ -88,11 +88,17 @@ impl DesktopGameApp {
 
         ui.label("执棋:");
         let mut human_side = session.human_side;
+        let (first_label, second_label, first_side, second_side) =
+            human_side_labels(&self.game_title);
         egui::ComboBox::from_id_salt("human_side")
-            .selected_text(if human_side > 0 { "执黑" } else { "执白" })
+            .selected_text(if human_side > 0 {
+                first_label
+            } else {
+                second_label
+            })
             .show_ui(ui, |ui| {
-                ui.selectable_value(&mut human_side, 1, "执黑");
-                ui.selectable_value(&mut human_side, -1, "执白");
+                ui.selectable_value(&mut human_side, first_side, first_label);
+                ui.selectable_value(&mut human_side, second_side, second_label);
             });
         if human_side != session.human_side {
             pending = Some(ViewInput::SetHumanSide(human_side));

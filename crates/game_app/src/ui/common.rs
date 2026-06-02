@@ -17,7 +17,7 @@ pub fn format_status(snapshot: &SnapshotDto, game_title: &str) -> String {
 
     if let Some(session) = &snapshot.session {
         status.push_str(" | ");
-        status.push_str(&format_session(session));
+        status.push_str(&format_session(session, game_title));
     }
 
     if snapshot.game_over {
@@ -45,7 +45,7 @@ pub fn format_status(snapshot: &SnapshotDto, game_title: &str) -> String {
     status
 }
 
-pub fn format_session(session: &SessionDto) -> String {
+pub fn format_session(session: &SessionDto, game_title: &str) -> String {
     let mode = match session.play_mode {
         PlayMode::LocalPvp => "人人对战",
         PlayMode::HumanVsAi => "人机对战",
@@ -55,12 +55,26 @@ pub fn format_session(session: &SessionDto) -> String {
         AiDifficulty::Medium => "中等",
         AiDifficulty::Hard => "困难",
     };
-    let human = if session.human_side > 0 {
+    let human = if game_title == "中国象棋" {
+        if session.human_side > 0 {
+            "玩家执红"
+        } else {
+            "玩家执黑"
+        }
+    } else if session.human_side > 0 {
         "玩家执黑"
     } else {
         "玩家执白"
     };
     format!("{mode} · {difficulty} · {human}")
+}
+
+pub fn human_side_labels(game_title: &str) -> (&'static str, &'static str, i8, i8) {
+    if game_title == "中国象棋" {
+        ("执红", "执黑", 1, -1)
+    } else {
+        ("执黑", "执白", 1, -1)
+    }
 }
 
 pub fn human_input_enabled(snapshot: &SnapshotDto) -> bool {

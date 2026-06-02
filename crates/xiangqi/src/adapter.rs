@@ -26,7 +26,7 @@ impl GameViewAdapter for XiangqiAdapter {
                 self.game.reset();
                 ViewOutput::Snapshot(self.game.snapshot())
             }
-            ViewInput::Click { x, y } => ViewOutput::Snapshot(self.game.click(x, y)),
+            ViewInput::Click { x, y } => ViewOutput::Snapshot(self.game.human_click(x, y)),
             ViewInput::TryMove {
                 from_x,
                 from_y,
@@ -37,9 +37,22 @@ impl GameViewAdapter for XiangqiAdapter {
                 Ok(moves) => ViewOutput::Moves(moves),
                 Err(err) => ViewOutput::Error(err),
             },
-            ViewInput::SetPlayMode(_)
-            | ViewInput::SetAiDifficulty(_)
-            | ViewInput::SetHumanSide(_) => ViewOutput::Snapshot(self.game.snapshot()),
+            ViewInput::SetPlayMode(mode) => {
+                self.game.set_play_mode(mode);
+                ViewOutput::Snapshot(self.game.snapshot())
+            }
+            ViewInput::SetAiDifficulty(difficulty) => {
+                self.game.set_ai_difficulty(difficulty);
+                ViewOutput::Snapshot(self.game.snapshot())
+            }
+            ViewInput::SetHumanSide(side) => {
+                if side == 1 || side == -1 {
+                    self.game.set_human_side(side);
+                    ViewOutput::Snapshot(self.game.snapshot())
+                } else {
+                    ViewOutput::Error("执棋方只能是红(1)或黑(-1)".to_string())
+                }
+            }
         }
     }
 
@@ -57,5 +70,9 @@ impl GameViewAdapter for XiangqiAdapter {
 
     fn game_title(&self) -> &str {
         "中国象棋"
+    }
+
+    fn supports_session_config(&self) -> bool {
+        true
     }
 }

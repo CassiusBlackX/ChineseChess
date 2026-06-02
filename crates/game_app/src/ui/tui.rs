@@ -110,10 +110,20 @@ impl TuiApp {
             KeyCode::Char('3') if self.supports_session => {
                 self.apply_session_input(ViewInput::SetAiDifficulty(AiDifficulty::Hard));
             }
-            KeyCode::Char('b') if self.supports_session => {
+            KeyCode::Char('b')
+                if self.supports_session && self.game_title != "中国象棋" =>
+            {
                 self.apply_session_input(ViewInput::SetHumanSide(1));
             }
-            KeyCode::Char('w') if self.supports_session => {
+            KeyCode::Char('w')
+                if self.supports_session && self.game_title != "中国象棋" =>
+            {
+                self.apply_session_input(ViewInput::SetHumanSide(-1));
+            }
+            KeyCode::Char('h') if self.supports_session && self.game_title == "中国象棋" => {
+                self.apply_session_input(ViewInput::SetHumanSide(1));
+            }
+            KeyCode::Char('k') if self.supports_session && self.game_title == "中国象棋" => {
                 self.apply_session_input(ViewInput::SetHumanSide(-1));
             }
             KeyCode::Left => {
@@ -199,10 +209,15 @@ impl TuiApp {
                 .snapshot
                 .session
                 .as_ref()
-                .map(format_session)
+                .map(|s| format_session(s, &title))
                 .unwrap_or_default();
+            let side_keys = if title == "中国象棋" {
+                "h/k 执棋"
+            } else {
+                "b/w 执棋"
+            };
             format!(
-                "{session_hint}\n方向键移动 | Enter/空格/鼠标落子 | m 切换模式 | 1/2/3 难度 | b/w 执棋 | r 重开 | q 退出"
+                "{session_hint}\n方向键移动 | Enter/空格/鼠标落子 | m 切换模式 | 1/2/3 难度 | {side_keys} | r 重开 | q 退出"
             )
         } else {
             "方向键移动光标 | Enter/空格点击 | 鼠标左键点击 | r 重开 | q/Esc 退出".to_string()

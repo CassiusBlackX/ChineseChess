@@ -1,7 +1,10 @@
 pub mod adapter;
+pub mod ai;
 pub mod board;
 pub mod chess;
 pub mod game;
+pub mod moves;
+pub mod rules;
 
 #[cfg(target_arch = "wasm32")]
 mod wasm_api;
